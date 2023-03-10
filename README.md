@@ -3,8 +3,12 @@ Codes for my paper "[Body-Part Joint Detection and Association via Extended Obje
 
 <table>
 <tr>
-<td><img src="./materials/000522_mpii_test_BPJDet.gif" height="240"></td>
-<td><img src="./materials/002376_mpii_test_BPJDet.gif" height="240"></td> 
+<th> Body-Head Demo 1 (no tracking) </th>
+<th> Body-Head Demo 2 (no tracking) </th>
+</tr>
+<tr>
+<td><img src="./materials/000522_mpii_test_BPJDet.gif" height="270"></td>
+<td><img src="./materials/002376_mpii_test_BPJDet.gif" height="270"></td> 
 </tr>
 </table>
 
@@ -73,33 +77,181 @@ yolov5l6.pt [https://github.com/ultralytics/yolov5/releases/download/v5.0/yolov5
 
 ### Body-Face Task
 
+* BPJDet-S (on CityPersons)
+```bash
+# training (using --noval for faster training)
+$ python -m torch.distributed.launch --nproc_per_node 2 train.py --workers 10 --device 0,1 \
+    --data data/JointBP_CityPersons_face.yaml --hyp data/hyp-p6.yaml --val-scales 1 --val-flips -1 \
+    --weights weights/yolov5s6.pt --project runs/BPJDet --img 1536 --batch 24 --epochs 100 \
+    --body_part_w 0.015 --name cps_face_s_1536_e100_mMR --noval
+# testing (w/o TTA)
+$ python val.py --rect --data data/JointBP_CityPersons_face.yaml --img 1536 \
+    --weights runs/JointBP/cps_face_s_1536_e100_mMR/weights/best_mMR.pt \
+    --batch-size 8 --device 3
+# result
+[mMR_all_list]: Reasonable: 0.293, Bare: 0.293, Partial: 0.289, Heavy: 0.572
+```
+* BPJDet-S (on CrowdHuman)
+```bash
+# training (using --noval for faster training)
+$ python -m torch.distributed.launch --nproc_per_node 3 train.py --workers 15 --device 0,1,2 \
+    --data data/JointBP_CrowdHuman_face.yaml --hyp data/hyp-p6.yaml --val-scales 1 --val-flips -1 \
+    --weights weights/yolov5s6.pt --project runs/BPJDet --img 1536 --batch 45 --epochs 150 \
+    --body_part_w 0.015 --name ch_face_s_1536_e150_mMR --noval
+# testing (w/o TTA)
+$ python val.py --rect --data data/JointBP_CrowdHuman_face.yaml --img 1536 \
+    --weights runs/BPJDet/ch_face_s_1536_e150_mMR/weights/best_mMR.pt \
+    --batch-size 8 --device 3
+# result
+[AP@.5&MR]: AP_body: 0.895, AP_part: 0.808, MR_body: 0.413, MR_part: 0.459, mMR_avg: 0.668
+[mMR_list]: Reasonable: 0.514, Small: 0.711, Heavy: 0.838, All: 0.607
+```
+
+* BPJDet-M (on CityPersons)
+```bash
+# training (using --noval for faster training)
+$ python -m torch.distributed.launch --nproc_per_node 2 train.py --workers 10 --device 0,1 \
+    --data data/JointBP_CityPersons_face.yaml --hyp data/hyp-p6.yaml --val-scales 1 --val-flips -1 \
+    --weights weights/yolov5m6.pt --project runs/BPJDet --img 1536 --batch 20 --epochs 100 \
+    --body_part_w 0.015 --name cps_face_m_1536_e100_mMR --noval
+# testing (w/o TTA)
+$ python val.py --rect --data data/JointBP_CityPersons_face.yaml --img 1536 \
+    --weights runs/BPJDet/cps_face_m_1536_e100_mMR/weights/best_mMR.pt \
+    --batch-size 8 --device 3
+# result
+[mMR_all_list]: Reasonable: 0.275, Bare: 0.249, Partial: 0.316, Heavy: 0.558
+```
+* BPJDet-M (on CrowdHuman)
+```bash
+# training (using --noval for faster training)
+$ python -m torch.distributed.launch --nproc_per_node 3 train.py --workers 15 --device 0,1,2 \
+    --data data/JointBP_CrowdHuman_face.yaml --hyp data/hyp-p6.yaml --val-scales 1 --val-flips -1 \
+    --weights weights/yolov5m6.pt --project runs/BPJDet --img 1536 --batch 30 --epochs 150 \
+    --body_part_w 0.015 --name ch_face_m_1536_e150_mMR --noval
+# testing (w/o TTA)
+$ python val.py --rect --data data/JointBP_CrowdHuman_face.yaml --img 1536 \
+    --weights runs/BPJDet/ch_face_m_1536_e150_mMR/weights/best_mMR.pt \
+    --batch-size 8 --device 3
+# result
+[AP@.5&MR]: AP_body: 0.907, AP_part: 0.822, MR_body: 0.397, MR_part: 0.450, mMR_avg: 0.662
+[mMR_list]: Reasonable: 0.506, Small: 0.692, Heavy: 0.844, All: 0.607
+```
+
+* BPJDet-L (on CityPersons)
+```bash
+# training (using --noval for faster training)
+$ python -m torch.distributed.launch --nproc_per_node 2 train.py --workers 10 --device 0,1 \
+    --data data/JointBP_CityPersons_face.yaml --hyp data/hyp-p6.yaml --val-scales 1 --val-flips -1 \
+    --weights weights/yolov5l6.pt --project runs/BPJDet --img 1536 --batch 12 --epochs 100 \
+    --body_part_w 0.015 --name cps_face_l_1536_e100_mMR --noval
+# testing (w/o TTA)
+$ python val.py --rect --data data/JointBP_CityPersons_face.yaml --img 1536 \
+    --weights runs/BPJDet/cps_face_l_1536_e100_mMR/weights/best_mMR.pt \
+    --batch-size 6 --device 3
+# result
+[mMR_all_list]: Reasonable: 0.264, Bare: 0.255, Partial: 0.277, Heavy: 0.462
+```
+* BPJDet-L (on CrowdHuman)
+```bash
+# training (using --noval for faster training)
+$ python -m torch.distributed.launch --nproc_per_node 3 train.py --workers 15 --device 0,1,2 \
+    --data data/JointBP_CrowdHuman_face.yaml --hyp data/hyp-p6.yaml --val-scales 1 --val-flips -1 \
+    --weights weights/yolov5l6.pt --project runs/BPJDet --img 1536 --batch 18 --epochs 150 \
+    --body_part_w 0.015 --name ch_face_l_1536_e150_mMR --noval
+# testing (w/o TTA)
+$ python val.py --rect --data data/JointBP_CrowdHuman_face.yaml --img 1536 \
+    --weights runs/BPJDet/ch_face_l_1536_e150_mMR/weights/best_mMR.pt \
+    --batch-size 8 --device 3
+# result
+[AP@.5&MR]: AP_body: 0.895, AP_part: 0.816, MR_body: 0.407, MR_part: 0.463, mMR_avg: 0.657
+[mMR_list]: Reasonable: 0.501, Small: 0.688, Heavy: 0.834, All: 0.604
+```
+
+
 ### Body-Hand Task
 
+* BPJDet-S (on BodyHands)
+```bash
+# training (using --noval for faster training)
+$ python -m torch.distributed.launch --nproc_per_node 3 train.py --workers 15 --device 0,1,2 \
+    --data data/JointBP_BodyHands.yaml --hyp data/hyp-p6.yaml --val-scales 1 --val-flips -1 \
+    --weights weights/yolov5s6.pt --project runs/BPJDet --img 1536 --batch 45 --epochs 100 \
+    --body_part_w 0.015 --name bh_hand_s_1536_e100 --noval
+# testing (w/o TTA)
+$ python val.py --rect --data data/JointBP_BodyHands.yaml --img 1536 \
+    --weights runs/BPJDet/bh_hand_s_1536_e100/weights/best.pt --batch-size 8 --device 3
+# result
+###### bodypart bbox mAP: 8063
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.840
+Body Accuracy corresponding to Dual Metric is: 85.6762
+AP_Dual(Joint-AP): 77.856, AP_Single: 62.743
+```
+
+* BPJDet-M (on BodyHands)
+```bash
+# training (using --noval for faster training)
+$ python -m torch.distributed.launch --nproc_per_node 3 train.py --workers 15 --device 0,1,2 \
+    --data data/JointBP_BodyHands.yaml --hyp data/hyp-p6.yaml --val-scales 1 --val-flips -1 \
+    --weights weights/yolov5m6.pt --project runs/BPJDet --img 1536 --batch 30 --epochs 100 \
+    --body_part_w 0.015 --name bh_hand_m_1536_e100 --noval
+# testing (w/o TTA)
+$ python val.py --rect --data data/JointBP_BodyHands.yaml --img 1536 \
+    --weights runs/BPJDet/bh_hand_m_1536_e100/weights/best.pt --batch-size 8 --device 3
+# result
+###### bodypart bbox mAP: 8077
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.853
+Body Accuracy corresponding to Dual Metric is: 86.8009
+AP_Dual(Joint-AP): 78.133, AP_Single: 63.243
+```
+
+* BPJDet-L (on BodyHands)
+```bash
+# training (using --noval for faster training)
+$ python -m torch.distributed.launch --nproc_per_node 3 train.py --workers 15 --device 0,1,2 \
+    --data data/JointBP_BodyHands.yaml --hyp data/hyp-p6.yaml --val-scales 1 --val-flips -1 \
+    --weights weights/yolov5l6.pt --project runs/BPJDet --img 1536 --batch 18 --epochs 100 \
+    --body_part_w 0.015 --name bh_hand_l_1536_e100 --noval
+# testing (w/o TTA)
+$ python val.py --rect --data data/JointBP_BodyHands.yaml --img 1536 \
+    --weights runs/BPJDet/bh_hand_l_1536_e100/weights/best.pt --batch-size 8 --device 3 
+# result
+###### bodypart bbox mAP: 8184
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.859
+Body Accuracy corresponding to Dual Metric is: 86.905
+AP_Dual(Joint-AP): 84.385, AP_Single: 63.589
+```
+
+
 ### Body-Head Task
+
+* BPJDet-S (on CrowdHuman)
+* BPJDet-M (on CrowdHuman)
+* BPJDet-L (on CrowdHuman)
+
 
 ## Inference
 
 * For single image or multiple images under one folder using `./demos/image.py`
 ```bash
 # single image. Taking body-head joint detection as an example.
-$ python demos/image.py --weights runs/JointBP/ch_head_l_1536_e150_mMR/weights/best_mMR.pt \
+$ python demos/image.py --weights runs/BPJDet/ch_head_l_1536_e150_mMR/weights/best_mMR.pt \
     --data data/JointBP_CrowdHuman_head.yaml --imgsz 1536 --conf-thres 0.45 --iou-thres 0.75 \
     --match-iou 0.6 --img-path test_imgs/CrowdHuman/273271,1e59400094ef5d82.jpg --device 3
-$ python demos/image.py --weights runs/JointBP/ch_head_l_1536_e150_mMR/weights/best_mMR.pt \
+$ python demos/image.py --weights runs/BPJDet/ch_head_l_1536_e150_mMR/weights/best_mMR.pt \
     --data data/JointBP_CrowdHuman_head.yaml --imgsz 1536 --conf-thres 0.45 --iou-thres 0.75 \
     --match-iou 0.6 --img-path test_imgs/COCO/000000567640.jpg --device 3
-$ python demos/image.py --weights runs/JointBP/ch_head_l_1536_e150_mMR/weights/best_mMR.pt \
+$ python demos/image.py --weights runs/BPJDet/ch_head_l_1536_e150_mMR/weights/best_mMR.pt \
     --data data/JointBP_CrowdHuman_head.yaml --imgsz 1536 --conf-thres 0.45 --iou-thres 0.75 \
     --match-iou 0.6 --img-path test_imgs/BodyHands/test_4507_1.jpg --device 3
 
 # multiple images. Taking body-head joint detection as an example.
-$ python demos/image.py --weights runs/JointBP/ch_head_l_1536_e150_mMR/weights/best_mMR.pt \
+$ python demos/image.py --weights runs/BPJDet/ch_head_l_1536_e150_mMR/weights/best_mMR.pt \
     --data data/JointBP_CrowdHuman_head.yaml --imgsz 1536 --conf-thres 0.45 --iou-thres 0.75 \
     --match-iou 0.6 --img-path test_imgs/CrowdHuman/ --device 3
-$ python demos/image.py --weights runs/JointBP/ch_head_l_1536_e150_mMR/weights/best_mMR.pt \
+$ python demos/image.py --weights runs/BPJDet/ch_head_l_1536_e150_mMR/weights/best_mMR.pt \
     --data data/JointBP_CrowdHuman_head.yaml --imgsz 1536 --conf-thres 0.45 --iou-thres 0.75 \
     --match-iou 0.6 --img-path test_imgs/COCO/ --device 3
-$ python demos/image.py --weights runs/JointBP/ch_head_l_1536_e150_mMR/weights/best_mMR.pt \
+$ python demos/image.py --weights runs/BPJDet/ch_head_l_1536_e150_mMR/weights/best_mMR.pt \
     --data data/JointBP_CrowdHuman_head.yaml --imgsz 1536 --conf-thres 0.45 --iou-thres 0.75 \
     --match-iou 0.6 --img-path test_imgs/BodyHands/ --device 3
 ```
@@ -107,13 +259,13 @@ $ python demos/image.py --weights runs/JointBP/ch_head_l_1536_e150_mMR/weights/b
 * For single video using `./demos/video.py`. Taking body-head joint detection as an example.
 ```bash
 # save as .mp4 file
-$ python demos/video.py --weights runs/JointBP/ch_head_l_1536_e150_mMR/weights/best_mMR.pt \
+$ python demos/video.py --weights runs/BPJDet/ch_head_l_1536_e150_mMR/weights/best_mMR.pt \
     --data data/JointBP_CrowdHuman_head.yaml --video-path test_imgs/path/to/file.mp4 \
     --imgsz 1536 --conf-thres 0.25 --iou-thres 0.75 --match-iou 0.6 --device 3 \
     --start 0 --end -1 --thickness 2 --alpha 0.2 --save-size 540
 
 # save as .gif file
-$ python demos/video.py --weights runs/JointBP/ch_head_l_1536_e150_mMR/weights/best_mMR.pt \
+$ python demos/video.py --weights runs/BPJDet/ch_head_l_1536_e150_mMR/weights/best_mMR.pt \
     --data data/JointBP_CrowdHuman_head.yaml --video-path test_imgs/PoseTrack/002376_mpii_test.mp4 \
     --imgsz 1536 --conf-thres 0.25 --iou-thres 0.75 --match-iou 0.6 --device 3 \
     --start 0 --end -1 --thickness 2 --alpha 0.2 --gif --gif-size 640 360
