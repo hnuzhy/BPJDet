@@ -32,6 +32,12 @@ Codes for my paper "[Body-Part Joint Detection and Association via Extended Obje
 
 ## Illustrations
 
+* **Fig. 1.** The illustration of the difference between our proposed single-stage BPJDet and other two-stage body-part joint detection methods.
+![example1](./materials/illustrations.png)
+
+* **Fig. 2.** **Left:** Our BPJDet adopts YOLOv5 as the backbone. **Right:** Examples for grid cell predictions with human body objects in red color and body part objects (e.g., face) in green color.
+![example2](./materials/architecture.png)
+
 
 ## Installation
 
