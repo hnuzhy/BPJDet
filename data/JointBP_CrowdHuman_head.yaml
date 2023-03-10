@@ -1,0 +1,23 @@
+
+# train and val data as 1) directory: path/images/, 2) file: path/images.txt, or 3) list: [path1/images/, path2/images/]
+path: /datasdc/zhouhuayi/dataset/CrowdHuman/
+labels: yolov5_style_head
+train: yolov5_style_head/img_txt/train.txt
+val: yolov5_style_head/img_txt/val.txt
+
+train_annotations: JointBodyPart/crowdhuman_coco_train_person.json
+val_annotations: JointBodyPart/crowdhuman_coco_val_person.json
+
+train_annotations_part: JointBodyPart/crowdhuman_coco_train_head.json  # for head mAP calculation of train-set
+val_annotations_part: JointBodyPart/crowdhuman_coco_val_head.json  # for head mAP calculation of val-set
+
+val_bhf_path: BFJDet/instances_val_full_bhf_new.json
+
+
+nc: 2  # number of classes (two class: human body, human head)
+num_offsets: 2  # number of coordinates introduced by the body part, e.g., (head_x, head_y)
+names: [ 'person', 'head' ]  # class names.
+part_type: head
+dataset: CrowdHuman
+
+

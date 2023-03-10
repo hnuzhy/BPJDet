@@ -1,0 +1,19 @@
+
+# train and val data as 1) directory: path/images/, 2) file: path/images.txt, or 3) list: [path1/images/, path2/images/]
+path: /datasdc/zhouhuayi/dataset/BodyHands/
+labels: yolov5_style_hand
+train: yolov5_style_hand/img_txt/train.txt
+val: yolov5_style_hand/img_txt/val.txt
+
+train_annotations: JointBodyPart/bodyhands_coco_train_person.json
+val_annotations: JointBodyPart/bodyhands_coco_val_person.json
+
+train_annotations_part: JointBodyPart/bodyhands_coco_train_hand.json  # for face mAP calculation of train-set
+val_annotations_part: JointBodyPart/bodyhands_coco_val_hand.json  # for face mAP calculation of val-set
+
+
+nc: 2  # number of classes (two class: human body, human hands (we do not label left or right hand in BodyHands!))
+num_offsets: 4  # number of coordinates introduced by the body part, e.g., (hand1_x, hand1_y, hand2_x, hand2_y)
+names: [ 'person', 'hand']  # class names.
+part_type: hand
+dataset: BodyHands
