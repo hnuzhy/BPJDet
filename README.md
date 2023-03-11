@@ -77,6 +77,18 @@ yolov5l6.pt [https://github.com/ultralytics/yolov5/releases/download/v5.0/yolov5
 
 ### Body-Face Task
 
+* preparing yolov5-style labels for body-face
+```bash
+# for CityPersons
+$ rm -rf /path/to/dataset/CityPersons/yolov5_style_face/
+$ cd /path/to/project/BPJDet
+$ python utils/labels.py --data data/JointBP_CityPersons_face.yaml
+# for CrowdHuman
+$ rm -rf /path/to/dataset/CrowdHuman/yolov5_style_face/
+$ cd /path/to/project/BPJDet
+$ python utils/labels.py --data data/JointBP_CrowdHuman_face.yaml
+```
+
 * BPJDet-S (on CityPersons)
 ```bash
 # training (using --noval for faster training)
@@ -170,6 +182,13 @@ $ python val.py --rect --data data/JointBP_CrowdHuman_face.yaml --img 1536 \
 
 ### Body-Hand Task
 
+* preparing yolov5-style labels for body-hand
+```bash
+$ rm -rf /path/to/dataset/BodyHands/yolov5_style_hand/
+$ cd /path/to/project/BPJDet
+$ python utils/labels.py --data data/JointBP_BodyHands.yaml
+```
+
 * BPJDet-S (on BodyHands)
 ```bash
 # training (using --noval for faster training)
@@ -224,9 +243,57 @@ AP_Dual(Joint-AP): 84.385, AP_Single: 63.589
 
 ### Body-Head Task
 
+* preparing yolov5-style labels for body-head
+```bash
+$ rm -rf /path/to/dataset/CrowdHuman/yolov5_style_head/
+$ cd /path/to/project/BPJDet
+$ python utils/labels.py --data data/JointBP_CrowdHuman_head.yaml
+```
+
 * BPJDet-S (on CrowdHuman)
+```bash
+# training (using --noval for faster training)
+$ python -m torch.distributed.launch --nproc_per_node 3 train.py --workers 15 --device 0,1,2 \
+    --data data/JointBP_CrowdHuman_head.yaml --hyp data/hyp-p6.yaml --val-scales 1 --val-flips -1 \
+    --weights weights/yolov5s6.pt --project runs/BPJDet --img 1536 --batch 45 --epochs 150 \
+    --body_part_w 0.015 --name ch_head_s_1536_e150_mMR --noval
+# testing (w/o TTA)
+$ python val.py --rect --data data/JointBP_CrowdHuman_head.yaml --img 1536 \
+    --weights runs/BPJDet/ch_head_s_1536_e150_mMR/weights/best_mMR.pt --batch-size 8 --device 3
+# result
+[AP@.5&MR]: AP_body: 0.824, AP_part: 0.771, MR_body: 0.459, MR_part: 0.478, mMR_avg: 0.661
+[mMR_list]: Reasonable: 0.480, Small: 0.613, Heavy: 0.869, All: 0.682
+```
+
 * BPJDet-M (on CrowdHuman)
+```bash
+# training (using --noval for faster training)
+$ python -m torch.distributed.launch --nproc_per_node 3 train.py --workers 15 --device 0,1,2 \
+    --data data/JointBP_CrowdHuman_head.yaml --hyp data/hyp-p6.yaml --val-scales 1 --val-flips -1 \
+    --weights weights/yolov5m6.pt --project runs/BPJDet --img 1536 --batch 30 --epochs 150 \
+    --body_part_w 0.015 --name ch_head_m_1536_e150_mMR --noval
+# testing (w/o TTA)
+$ python val.py --rect --data data/JointBP_CrowdHuman_head.yaml --img 1536 \
+    --weights runs/BPJDet/ch_head_m_1536_e150_mMR/weights/best_mMR.pt --batch-size 8 --device 3
+# result
+[AP@.5&MR]: AP_body: 0.828, AP_part: 0.777, MR_body: 0.454, MR_part: 0.468, mMR_avg: 0.648
+[mMR_list]: Reasonable: 0.461, Small: 0.596, Heavy: 0.869, All: 0.665
+```
+
 * BPJDet-L (on CrowdHuman)
+```bash
+# training (using --noval for faster training)
+$ python -m torch.distributed.launch --nproc_per_node 3 train.py --workers 15 --device 0,1,2 \
+    --data data/JointBP_CrowdHuman_head.yaml --hyp data/hyp-p6.yaml --val-scales 1 --val-flips -1 \
+    --weights weights/yolov5l6.pt --project runs/BPJDet --img 1536 --batch 18 --epochs 150 \
+    --body_part_w 0.015 --name ch_head_l_1536_e150_mMR
+# testing (w/o TTA)
+$ python val.py --rect --data data/JointBP_CrowdHuman_head.yaml --img 1536 \
+    --weights runs/BPJDet/ch_head_l_1536_e150_mMR/weights/best_mMR.pt --batch-size 8 --device 3
+# result
+[AP@.5&MR]: AP_body: 0.811, AP_part: 0.761, MR_body: 0.462, MR_part: 0.480, mMR_avg: 0.645
+[mMR_list]: Reasonable: 0.464, Small: 0.582, Heavy: 0.864, All: 0.670
+```
 
 
 ## Inference
@@ -266,7 +333,7 @@ $ python demos/video.py --weights runs/BPJDet/ch_head_l_1536_e150_mMR/weights/be
 
 # save as .gif file
 $ python demos/video.py --weights runs/BPJDet/ch_head_l_1536_e150_mMR/weights/best_mMR.pt \
-    --data data/JointBP_CrowdHuman_head.yaml --video-path test_imgs/PoseTrack/002376_mpii_test.mp4 \
+    --data data/JointBP_CrowdHuman_head.yaml --video-path test_imgs/path/to/file.mp4 \
     --imgsz 1536 --conf-thres 0.25 --iou-thres 0.75 --match-iou 0.6 --device 3 \
     --start 0 --end -1 --thickness 2 --alpha 0.2 --gif --gif-size 640 360
 ```
