@@ -58,10 +58,43 @@ $ pip3 install torch==1.10.0+cu111 torchvision==0.11.1+cu111 torchaudio==0.10.0+
 ## Dataset Preparing
 
 ### CityPersons
+* [CityPersons](https://arxiv.org/abs/1702.05693) is a new set of person annotations on top of the [Cityscapes](https://www.cityscapes-dataset.com/) dataset.
+* Download images of CityPersons from Cityscapes website https://www.cityscapes-dataset.com/.
+* Download annotations from [GoogleDrive](https://drive.google.com/drive/folders/1PxGTo_SE8O56r0qw7DgmR3Lk-eokS0X0), which contains the original body boxes and newly annotated head/face boxes by [BFJDet](https://github.com/AibeeDetect/BFJDet#data-preparing). You will get three json files from the ground-truth folder `instances_train_bhfmatch_new.json`, `instances_val_bhfmatch_new.json` and `instances_val_bf_new.json`.
+* Process new annotations of CityPersons provided by BFJDet for our BPJDet task by running `python tools/get_anno_CityPersons.py`.
+```bash
+# Dataset info stat after processing:
+original images [train:val] = [2415:500](2915), and instances [train:val] = [22169:5185]
+[person]    (images --> train:val=1847:361, total 2208, instances --> train:val=14762:3439, total 18201)
+[head]      (images --> train:val=1847:361, total 2208, instances --> train:val=14554:3400, total 17954)
+[face]      (images --> train:val=1846:361, total 2207, instances --> train:val= 6487:1435, total  7922)
+```
 
 ### CrowdHuman
+* [CrowdHuman](https://www.crowdhuman.org/) is a benchmark dataset focusing on human to better evaluate detectors in crowd scenarios.
+* Download images of CrowdHuman from website http://www.crowdhuman.org/.
+* Download annotations from [GoogleDrive](https://drive.google.com/drive/folders/1Sk2IAmm_wTVh289RKs5FiU17siWrJJCu), which contains the original body/head boxes and newly annotated face boxes by [BFJDet](https://github.com/AibeeDetect/BFJDet#data-preparing). You will get two json files `instances_train_full_bhf_new.json` and `instances_val_full_bhf_new.json`.
+* Process new annotations of CrowdHuman provided by BFJDet for our BPJDet task by running `python tools/get_anno_CrowdHuman.py`.
+```bash
+# Dataset info stat after processing:
+original images [train:val] = [15000:4370](2915), and instances [train:val] = [438792:127716](566508)
+[person]    (images --> train:val=15000:4370, instances --> train:val=339565:99481 (439046))
+[head]      (images --> train:val=15000:4370, instances --> train:val=339565:99481 (439046))
+[face]      (images --> train:val=14690:4282, instances --> train:val=191575:57328 (248903))
+```
 
 ### BodyHands
+* [BodyHands](http://vision.cs.stonybrook.edu/~supreeth/BodyHands/) is a large-scale dataset, and has images with annotations for hand and body locations and their correspondences.
+* Download images and annotations of BodyHands from website http://vision.cs.stonybrook.edu/~supreeth/BodyHands/.
+* The original using and training of BodyHands are in https://github.com/cvlab-stonybrook/BodyHands.
+* Process official annotations of BodyHands for our BPJDet task by running `python tools/get_anno_BodyHands.py`.
+```bash
+# Dataset info stat after processing:
+original images [train:val] = [18858:1629](20487), and instances [train:val] = [56060:7048](63108)
+[person]    (images --> train:val=18858:1629, instances --> train:val=56060:7048 (63108))
+[hand]      (images --> train:val=18858:1629, instances --> train:val=51901:5983 (57884))
+```
+
 
 ## Training and Testing
 
