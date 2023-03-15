@@ -1,6 +1,8 @@
 # BPJDet
 Codes for my paper "[Body-Part Joint Detection and Association via Extended Object Representation](https://arxiv.org/abs/2212.07652)" accepted by ICME2023
 
+* [**2023-03-15**] We have decided to release our BPJDet-S/M/L pretrained models on CrowdHuman and BodyHands in [Hugging Face](https://huggingface.co/HoyerChou/BPJDet). Please follow the [[Inference](#inference)] section to test on your own images/videos.
+
 <table>
 <tr>
 <th> Body-Head Demo 1 (no tracking) </th>
