@@ -32,6 +32,7 @@ Codes for my paper "[Body-Part Joint Detection and Association via Extended Obje
   * [Body-Head Task](#body-head-task)
 - [Inference](#inference)
 - [References](#references)
+- [Licenses](#licenses) 
 - [Citation](#citation)
 <!--te-->
 
@@ -380,6 +381,13 @@ $ python demos/video.py --weights runs/BPJDet/ch_head_l_1536_e150_mMR/weights/be
 * [ICCV 2021 (BFJDet) - Body-Face Joint Detection via Embedding and Head Hook](https://github.com/AibeeDetect/BFJDet)
 * [CVPR 2022 (BodyHands) - Whose Hands Are These? Hand Detection and Hand-Body Association in the Wild](https://github.com/cvlab-stonybrook/BodyHands)
 * We also thank public datasets [CityPersons](https://www.cityscapes-dataset.com/), [CrowdHuman](https://www.crowdhuman.org/) and [COCOPersons](https://cocodataset.org/) for their excellent works.
+
+
+## Licenses
+
+Our work is based on public code and datasets. If you plan to add our work to your business project, please obtain the following enterprise licenses.
+* **BPJDet:** GNU General Public License v3.0 (GPL-3.0 License): See [LICENSE](./LICENSE.txt) file for details. 
+* **YOLOv5:** To request an Enterprise License please complete the form at [Ultralytics Licensing](https://ultralytics.com/license)
 
 
 ## Citation
