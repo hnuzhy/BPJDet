@@ -33,9 +33,14 @@ class Loggers():
         self.hyp = hyp
         self.logger = logger  # for printing results to console
         self.include = include
-        self.keys = ['train/box_loss', 'train/obj_loss', 'train/cls_loss',  'train/bpb_loss', # train loss
+        self.keys = ['train/box_loss', 'train/obj_loss', 'train/cls_loss', 'train/bpl_loss', # train loss
                      'metrics/mAP50', 'metrics/mAP', 'metrics/mAP50_part', 'metrics/mAP_part', # metrics
                      'val/box_loss', 'val/obj_loss', 'val/cls_loss', 'val/bpl_loss', # val loss
+                     'metrics/MR_body','metrics/MR_part', 'metrics/mMR',  # metrics error
+                     'x/lr0', 'x/lr1', 'x/lr2']  # params
+        self.keys_plus = ['train/box_loss', 'train/obj_loss', 'train/cls_loss', 'train/bpl_loss', 'train/cts_loss', # train loss
+                     'metrics/mAP50', 'metrics/mAP', 'metrics/mAP50_part', 'metrics/mAP_part', # metrics
+                     'val/box_loss', 'val/obj_loss', 'val/cls_loss', 'val/bpl_loss', 'val/cts_loss', # val loss
                      'metrics/MR_body','metrics/MR_part', 'metrics/mMR',  # metrics error
                      'x/lr0', 'x/lr1', 'x/lr2']  # params
         for k in LOGGERS:
@@ -101,13 +106,19 @@ class Loggers():
             files = sorted(self.save_dir.glob('val*.jpg'))
             self.wandb.log({"Validation": [wandb.Image(str(f), caption=f.name) for f in files]})
 
-    def on_fit_epoch_end(self, vals, epoch, best_fitness, fi):
+    def on_fit_epoch_end(self, vals, epoch, best_fitness, fi, num_states):
         # Callback runs at the end of each fit (train+val) epoch
-        x = {k: v for k, v in zip(self.keys, vals)}  # dict
+        if num_states:
+            x = {k: v for k, v in zip(self.keys_plus, vals)}  # dict
+        else:
+            x = {k: v for k, v in zip(self.keys, vals)}  # dict
         if self.csv:
             file = self.save_dir / 'results.csv'
             n = len(x) + 1  # number of cols
-            s = '' if file.exists() else (('%20s,' * n % tuple(['epoch'] + self.keys)).rstrip(',') + '\n')  # add header
+            if num_states:
+                s = '' if file.exists() else (('%20s,' * n % tuple(['epoch'] + self.keys_plus)).rstrip(',') + '\n')  # add header
+            else:
+                s = '' if file.exists() else (('%20s,' * n % tuple(['epoch'] + self.keys)).rstrip(',') + '\n')  # add header
             with open(file, 'a') as f:
                 f.write(s + ('%20.5g,' * n % tuple([epoch] + vals)).rstrip(',') + '\n')
 

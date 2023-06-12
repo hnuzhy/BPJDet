@@ -13,6 +13,7 @@ from utils.eval.compute_MMR import compute_MMR
 from utils.eval.misc_utils import save_json_lines
 
 from utils.eval.eval_bodyhands import voc_eval
+from utils.eval.eval_contacthands import voc_eval as voc_eval_contact
 
 
 def sort_labels_by_image_id(labels_list):
@@ -78,7 +79,11 @@ def pred_boxes_dump_BFJDet(pred_json_path, anno_json_path, part_type="body"):
         temp_dict["width"] = info_imgid_dict[img_id]['width'],  # used in clip_all_boader()
         dtboxes = []
         for preds_dict in preds_dict_list:
-            assert preds_dict['category_id'] == class_tag, "unmatched category_id:"+pred_json_path
+            # assert preds_dict['category_id'] == class_tag, "unmatched category_id:"+pred_json_path
+
+            if preds_dict['category_id'] != class_tag:  # for HumanParts dataset, we have 6 kinds of bodypart in pred_json
+                continue
+                
             dtboxes.append({
                 'box': preds_dict['bbox'],
                 'score': preds_dict['score'],
@@ -98,8 +103,8 @@ def pred_boxes_dump_BFJDet(pred_json_path, anno_json_path, part_type="body"):
     return json_path_new
 
 
-# process COCO format predictions into BodyHands format
-def process_predictions(json_path_body, val_json_path):
+# process COCO format predictions into BodyHands or ContactHands format
+def process_predictions(json_path_body, val_json_path, dataset="BodyHands"):
 
     pred_boxes_dict_list = json.load(open(json_path_body, "r"))
     imgid_preds_dict = sort_labels_by_image_id(pred_boxes_dict_list)
@@ -131,7 +136,12 @@ def process_predictions(json_path_body, val_json_path):
                 hx1, hy1, hw, hh = preds_dict['h1_bbox']
                 hx2, hy2 = hx1 + hw, hy1 + hh
                 hx1, hy1 = hx1 +1 , hy1 + 1
-                save_line = f"{img_name_real} {h1_score} {hx1} {hy1} {hx2} {hy2} {bx1} {by1} {bx2} {by2}"
+                if dataset == "BodyHands":
+                    save_line = f"{img_name_real} {h1_score} {hx1} {hy1} {hx2} {hy2} {bx1} {by1} {bx2} {by2}"
+                if dataset == "ContactHands":
+                    h1_state = preds_dict['h1_state']
+                    [nc, sc, pc, oc] = h1_state
+                    save_line = f"{img_name_real} {h1_score} {hx1} {hy1} {hx2} {hy2} {nc} {sc} {pc} {oc}"
                 all_predictions_lines.append(save_line)
                 
             h2_score = preds_dict['h2_score']
@@ -139,7 +149,12 @@ def process_predictions(json_path_body, val_json_path):
                 hx1, hy1, hw, hh = preds_dict['h2_bbox']
                 hx2, hy2 = hx1 + hw, hy1 + hh
                 hx1, hy1 = hx1 +1 , hy1 + 1
-                save_line = f"{img_name_real} {h2_score} {hx1} {hy1} {hx2} {hy2} {bx1} {by1} {bx2} {by2}"
+                if dataset == "BodyHands":
+                    save_line = f"{img_name_real} {h2_score} {hx1} {hy1} {hx2} {hy2} {bx1} {by1} {bx2} {by2}"
+                if dataset == "ContactHands":
+                    h2_state = preds_dict['h2_state']
+                    [nc, sc, pc, oc] = h2_state
+                    save_line = f"{img_name_real} {h2_score} {hx1} {hy1} {hx2} {hy2} {nc} {sc} {pc} {oc}"
                 all_predictions_lines.append(save_line)
                 
     return all_predictions_lines
@@ -158,7 +173,7 @@ def body_part_association_evaluation(json_path_body, json_path_part, data_cfg):
             MR_part_list = eval_mr(val_bf_path, json_path_part, type='face')
             MR_part = sum(MR_part_list) / len(MR_part_list) # "Reasonable", "Bare", "Partial", "Heavy"
             mMR_list = eval_mmr(val_bhf_path, json_path_body, body_part='face')
-            mMR = sum(mMR_list) / len(mMR_list) # "Reasonable", "Bare", "Partial", "Heavy"
+            mMR_avg = sum(mMR_list) / len(mMR_list) # "Reasonable", "Bare", "Partial", "Heavy"
             
         if data_cfg['part_type'] == "head":
             val_bh_path = os.path.join(data_cfg["path"], data_cfg["val_bh_path"])
@@ -168,9 +183,9 @@ def body_part_association_evaluation(json_path_body, json_path_part, data_cfg):
             MR_part_list = eval_mr(val_bh_path, json_path_part, type='head')
             MR_part = sum(MR_part_list) / len(MR_part_list) # "Reasonable", "Bare", "Partial", "Heavy"
             mMR_list = eval_mmr(val_bhf_path, json_path_body, body_part='head')
-            mMR = sum(mMR_list) / len(mMR_list) # "Reasonable", "Bare", "Partial", "Heavy"
+            mMR_avg = sum(mMR_list) / len(mMR_list) # "Reasonable", "Bare", "Partial", "Heavy"
             
-        return MR_body_list, MR_part_list, mMR_list, MR_body, MR_part, mMR
+        return MR_body_list, MR_part_list, mMR_list, MR_body, MR_part, mMR_avg
         
         
     # https://github.com/AibeeDetect/BFJDet/blob/main/lib/evaluate/compute_MMR.py
@@ -209,7 +224,7 @@ def body_part_association_evaluation(json_path_body, json_path_part, data_cfg):
         cls_name = data_cfg['part_type']  # 'hand'
         is_2007_year = True  # True or False, we set it as True following BodyHands
         
-        all_predictions_lines = process_predictions(json_path_body, val_json_path)
+        all_predictions_lines = process_predictions(json_path_body, val_json_path, dataset="BodyHands")
         
         rec_dual, prec_dual, ap_dual = voc_eval(all_predictions_lines, anno_file_template, image_set_path, 
             cls_name, ovthresh=0.5, use_07_metric=is_2007_year, single_metric=False)  # aps_dual_metric
@@ -220,3 +235,62 @@ def body_part_association_evaluation(json_path_body, json_path_part, data_cfg):
         # rec_single and prec_single are list
         
         return ap_dual * 100 , ap_single * 100
+
+
+    # https://github.com/cvlab-stonybrook/ContactHands/blob/main/contact_hands_two_stream/evaluation/evaluator_ourdata.py
+    if data_cfg['dataset'] == "ContactHands":
+        val_json_path = os.path.join(data_cfg['path'], data_cfg['val_annotations'])
+        anno_file_template = os.path.join(data_cfg['path'], "Annotations", "{}.xml")
+        image_set_path = os.path.join(data_cfg['path'], "ImageSets", "Main", "test.txt")
+        cls_name = data_cfg['part_type']  # 'hand'
+        is_2007_year = True  # True or False, we set it as True following ContactHands
+        
+        all_predictions_lines = process_predictions(json_path_body, val_json_path, dataset="ContactHands")
+        
+        ret_APs = voc_eval_contact(all_predictions_lines, anno_file_template, image_set_path, 
+            cls_name, ovthresh=0.5, use_07_metric=is_2007_year)  # APs metric
+        
+        hand_AP = ret_APs["hand"]["ap"]
+        NC_AP = ret_APs["no_contact"]["ap"]
+        SC_AP = ret_APs["self_contact"]["ap"]
+        PC_AP = ret_APs["other_person_contact"]["ap"]
+        OC_AP = ret_APs["object_contact"]["ap"]
+        mAP = ret_APs["mAP_contact"]
+        return hand_AP, NC_AP, SC_AP, PC_AP, OC_AP, mAP
+        
+
+    # https://github.com/AibeeDetect/BFJDet/blob/main/lib/evaluate/compute_MMR.py
+    # https://github.com/soeaver/Hier-R-CNN/blob/master/rcnn/datasets/evaluation.py
+    if data_cfg['dataset'] == "HumanParts":
+        val_bfjformat_path = os.path.join(data_cfg["path"], data_cfg["val_annotations"])
+        
+        json_path_body_new = pred_boxes_dump_BFJDet(json_path_body, val_bfjformat_path, part_type="body")
+        
+        AP_body, MR_body = compute_APMR(json_path_body_new, val_bfjformat_path, 
+            'box', if_face=False, body_part='body')
+
+        assert data_cfg['part_type'] == "head", "currently, we only consider body-head mMR calculation!"
+        
+        # although there may have other bodyparts in json_path_part and val_bfjformat_path, we do not use them 
+        json_path_part_new = pred_boxes_dump_BFJDet(json_path_part, val_bfjformat_path, part_type="head")
+        AP_part, MR_part = compute_APMR(json_path_part_new, val_bfjformat_path, 
+            'box', if_face=True, body_part='head')
+        
+        # although there may have other bodyparts in json_path_body and val_bfjformat_path, we do not use them         
+        mMR_list = compute_MMR(json_path_body, val_bfjformat_path, body_part='head')
+        # mMR_avg = sum(mMR_list) / len(mMR_list)  # "Reasonable", "Small", "Heavy", "All"
+        mMR_avg, cnt = 0, 0
+        for mMR in mMR_list:
+            if mMR > 0:
+                mMR_avg += mMR
+                cnt += 1
+            else:  # mMR of "Heavy" may be -1
+                continue
+        mMR_avg /= cnt
+        
+        return AP_body, MR_body, AP_part, MR_part, mMR_list, mMR_avg
+        
+        '''
+        todo list: we should also implement the evaluation way in Hier-R-CNN
+        '''
+        

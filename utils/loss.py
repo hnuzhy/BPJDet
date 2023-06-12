@@ -89,7 +89,8 @@ class QFocalLoss(nn.Module):
 
 
 class ComputeLoss:
-    def __init__(self, model, autobalance=False, num_offsets=1):
+    # def __init__(self, model, autobalance=False, num_offsets=1):
+    def __init__(self, model, autobalance=False, num_offsets=1, num_states=0):
         super(ComputeLoss, self).__init__()
         self.sort_obj_iou = False
         device = next(model.parameters()).device  # get model device
@@ -116,6 +117,7 @@ class ComputeLoss:
             self.loss_coeffs = model.module.loss_coeffs if is_parallel(model) else model.loss_coeffs[-1]
 
         self.num_offsets = num_offsets  # the default is 3 for head part center
+        self.num_states = num_states  # the default is 0 for BPJDet, is 8 for BPJDetPlus
         
         self.na = det.na
         self.nc = det.nc
@@ -128,8 +130,12 @@ class ComputeLoss:
         lbox = torch.zeros(1, device=device)
         lobj = torch.zeros(1, device=device)
         lbpl = torch.zeros(1, device=device)  # Regression loss of body part bbox
-        tcls, tbox, tbps, indices, anchors = self.build_targets(p, targets)  # targets
+        lcts = torch.zeros(1, device=device)  # ConTact State loss of hand
 
+        # tcls, tbox, tbps, indices, anchors = self.build_targets(p, targets)  # targets
+        tcls, tbox, tbps, tctss, indices, anchors = self.build_targets(p, targets)  # targets
+        
+        
         # Losses
         for i, pi in enumerate(p):  # layer index, layer predictions
             b, a, gj, gi = indices[i]  # image, anchor, gridy, gridx
@@ -154,7 +160,10 @@ class ComputeLoss:
                     vis = tbp[..., 2] > 0
                     tbp_vis = tbp[vis]
                     if len(tbp_vis):
-                        pbp = ps[:, 5 + self.nc:].reshape((-1, self.num_offsets // 2, 2))
+                        if self.num_states:
+                            pbp = ps[:, 5 + self.nc:-self.num_states].reshape((-1, self.num_offsets // 2, 2))
+                        else:
+                            pbp = ps[:, 5 + self.nc:].reshape((-1, self.num_offsets // 2, 2))
                         pbp = (pbp.sigmoid() * 4. - 2.) * anchors[i][:, None, :]  # range [-2, 2] * anchor
                         pbp_vis = pbp[vis]
                         # print(i, "MSE Loss:", "\n", pbp_vis.shape, pbp_vis, "\n", tbp_vis.shape, tbp_vis)
@@ -162,6 +171,21 @@ class ComputeLoss:
                         lbpl += torch.mean(l2)
                         # print(i, lbpl)                        
                 
+                # BCE loss for hand contact state estimation, same as the Classification
+                if self.num_states:
+                    tcts = tctss[i]
+                    pcts = ps[:, -self.num_states:]
+                    for si in range(self.num_states):  # si --> state index [NC, SC, PC, OC] + [NC, SC, PC, OC]
+                        vis = tcts[..., si] < 2  # 0, 1 and 2 is for No, Yes and Not-sure
+                        tcts_vis = tcts[..., si][vis]
+                        if len(tcts_vis):
+                            pcts_vis = pcts[..., si][vis]
+                            lcts += self.BCEcls(pcts_vis, tcts_vis.float())  # BCE (no smooth_BCE)
+                            # pcts_vis_new = torch.unsqueeze(pcts_vis, dim=-1)
+                            # t = torch.full_like(pcts_vis_new, self.cn, device=device)  # targets
+                            # t[range(len(tcts_vis)), tcts_vis] = self.cp
+                            # lcts += self.BCEcls(pcts_vis_new, t.float())  # BCE (smooth_BCE)(for mulit-classes)
+                            
                 # Objectness
                 score_iou = iou.detach().clamp(0).type(tobj.dtype)
                 if self.sort_obj_iou:
@@ -186,16 +210,22 @@ class ComputeLoss:
         lobj *= self.hyp['obj']
         lcls *= self.hyp['cls']
         lbpl *= self.hyp['part_w']
+        lcts *= self.hyp['state_w']
 
         if self.autobalance:
-            loss = (lbox + lobj + lcls) / (torch.exp(2 * self.loss_coeffs[0])) + self.loss_coeffs[0]
+            # loss = (lbox + lobj + lcls) / (torch.exp(2 * self.loss_coeffs[0])) + self.loss_coeffs[0]
+            loss = (lbox + lobj + lcls + lcts) / (torch.exp(2 * self.loss_coeffs[0])) + self.loss_coeffs[0]
             loss += lbpl / (torch.exp(2 * self.loss_coeffs[1])) + self.loss_coeffs[1]
         else:
-            loss = lbox + lobj + lcls + lbpl
+            # loss = lbox + lobj + lcls + lbpl
+            loss = lbox + lobj + lcls + lbpl + lcts
 
         bs = tobj.shape[0]  # batch size
-
-        return loss * bs, torch.cat((lbox, lobj, lcls, lbpl)).detach()
+        
+        if self.num_states:
+            return loss * bs, torch.cat((lbox, lobj, lcls, lbpl, lcts)).detach()
+        else:
+            return loss * bs, torch.cat((lbox, lobj, lcls, lbpl)).detach()
     
     ''' Understand YOLO-style anchors 
     https://blog.csdn.net/flyfish1986/article/details/117594265 
@@ -204,8 +234,10 @@ class ComputeLoss:
     def build_targets(self, p, targets):  
         # Build targets for compute_loss(), input targets(image,class,x,y,w,h, x_part,y_part)
         na, nt = self.na, targets.shape[0]  # number of anchors, targets
-        tcls, tbox, tbps, indices, anch = [], [], [], [], []
-        gain = torch.ones(7 + self.num_offsets * 3 // 2, device=targets.device)  # normalized to gridspace gain
+        # tcls, tbox, tbps, indices, anch = [], [], [], [], []
+        # gain = torch.ones(7 + self.num_offsets * 3 // 2, device=targets.device)  # normalized to gridspace gain
+        tcls, tbox, tbps, tctss, indices, anch = [], [], [], [], [], []
+        gain = torch.ones(7 + self.num_offsets * 3 // 2 + self.num_states, device=targets.device)  # normalized to gridspace gain
         ai = torch.arange(na, device=targets.device).float().view(na, 1).repeat(1, nt)  # same as .repeat_interleave(nt)
         targets = torch.cat((targets.repeat(na, 1, 1), ai[:, :, None]), 2)  # append anchor indices
 
@@ -254,10 +286,14 @@ class ComputeLoss:
             gi, gj = gij.T  # grid xy indices
 
             if self.num_offsets:
-                part_xy = t[:, 6:-1].reshape(-1, self.num_offsets // 2, 3)
+                # part_xy = t[:, 6:-1].reshape(-1, self.num_offsets // 2, 3)
+                part_xy = t[:, 6:-(1+self.num_states)].reshape(-1, self.num_offsets // 2, 3)
                 part_xy[..., :2] -= gij[:, None, :]  # grid part box relative to grid box anchor
                 tbps.append(part_xy)
-
+            
+            if self.num_states:
+                s = t[:, -(1+self.num_states):-1].long()  # GT of hand contact states
+                tctss.append(s)
 
             # Append
             a = t[:, -1].long()  # anchor indices
@@ -266,4 +302,5 @@ class ComputeLoss:
             anch.append(anchors[a])  # anchors
             tcls.append(c)  # class
 
-        return tcls, tbox, tbps, indices, anch
+        # return tcls, tbox, tbps, indices, anch
+        return tcls, tbox, tbps, tctss, indices, anch

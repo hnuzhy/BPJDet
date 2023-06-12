@@ -93,7 +93,7 @@ def exif_transpose(image):
 
 
 def create_dataloader(path, labels_dir, imgsz, batch_size, stride, single_cls=False, hyp=None, augment=False, cache=False, 
-    pad=0.0, rect=False, rank=-1, workers=8, image_weights=False, quad=False, prefix='',num_offsets=0):
+    pad=0.0, rect=False, rank=-1, workers=8, image_weights=False, quad=False, prefix='',num_offsets=0, num_states=0):
     # Make sure only the first process in DDP process the dataset first, and the following others can use the cache
     with torch_distributed_zero_first(rank):
         dataset = LoadImagesAndLabels(path, labels_dir, imgsz, batch_size,
@@ -106,7 +106,8 @@ def create_dataloader(path, labels_dir, imgsz, batch_size, stride, single_cls=Fa
                                       pad=pad,
                                       image_weights=image_weights,
                                       prefix=prefix,
-                                      num_offsets=num_offsets)
+                                      num_offsets=num_offsets,
+                                      num_states=num_states)
 
         # for i in range(10):
         #     dataset.__getitem__(i)
@@ -226,7 +227,7 @@ class LoadImages:  # for inference
             self.count += 1
             img0 = cv2.imread(path)  # BGR
             assert img0 is not None, 'Image Not Found ' + path
-            print(f'image {self.count}/{self.nf} {path}: ', end='')
+            # print(f'image {self.count}/{self.nf} {path}: ', end='')
 
         # Padded resize
         img = letterbox(img0, self.img_size, stride=self.stride, auto=self.auto)[0]
@@ -375,7 +376,8 @@ def img2label_paths(img_paths, image_dir='images', labels_dir='labels'):
 
 class LoadImagesAndLabels(Dataset):  # for training/testing
     def __init__(self, path, labels_dir='labels', img_size=640, batch_size=16, augment=False, hyp=None, 
-        rect=False, image_weights=False, cache_images=False, single_cls=False, stride=32, pad=0.0, prefix='',num_offsets=0):
+        rect=False, image_weights=False, cache_images=False, single_cls=False, stride=32, pad=0.0, prefix='',
+        num_offsets=0, num_states=0):
 
         self.labels_dir = labels_dir
         self.img_size = img_size
@@ -389,7 +391,8 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
         self.path = path
         self.albumentations = Albumentations() if augment else None
         self.num_offsets = num_offsets
-
+        self.num_states = num_states
+        
         try:
             f = []  # image files
             for p in path if isinstance(path, list) else [path]:
@@ -500,7 +503,8 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
         desc = f"{prefix}Scanning '{path.parent / path.stem}' images and labels..."
         with Pool(NUM_THREADS) as pool:
             pbar = tqdm(pool.imap_unordered(verify_image_label, zip(self.img_files, self.label_files, repeat(prefix), 
-                repeat(self.num_offsets))), desc=desc, total=len(self.img_files))
+                repeat(self.num_offsets), repeat(self.num_states))), desc=desc, total=len(self.img_files))
+                # repeat(self.num_offsets))), desc=desc, total=len(self.img_files))
             for im_file, l, shape, segments, nm_f, nf_f, ne_f, nc_f, msg in pbar:
                 nm += nm_f
                 nf += nf_f
@@ -563,7 +567,11 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
 
             labels = self.labels[index].copy()
             if labels.size:  # normalized xywh to pixel xyxy format
-                labels[:, 1:] = xywhn2xyxy(labels[:, 1:], ratio[0] * w, ratio[1] * h, padw=pad[0], padh=pad[1])
+                if self.num_states:
+                    labels[:, 1:-self.num_states] = xywhn2xyxy(labels[:, 1:-self.num_states], 
+                        ratio[0] * w, ratio[1] * h, padw=pad[0], padh=pad[1])
+                else:
+                    labels[:, 1:] = xywhn2xyxy(labels[:, 1:], ratio[0] * w, ratio[1] * h, padw=pad[0], padh=pad[1])
                 # labels[:, 1:5] = xywhn2xyxy(labels[:, 1:5], ratio[0] * w, ratio[1] * h, padw=pad[0], padh=pad[1])
 
             if self.augment:
@@ -572,11 +580,16 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
                                                  translate=hyp['translate'],
                                                  scale=hyp['scale'],
                                                  shear=hyp['shear'],
-                                                 perspective=hyp['perspective'])
+                                                 perspective=hyp['perspective'],
+                                                 num_states=self.num_states)
 
         nl = len(labels)  # number of labels
         if nl:
-            labels[:, 1:] = xyxy2xywhn(labels[:, 1:], w=img.shape[1], h=img.shape[0], clip=True, eps=1E-3)
+            if self.num_states:
+                labels[:, 1:-self.num_states] = xyxy2xywhn(labels[:, 1:-self.num_states], 
+                    w=img.shape[1], h=img.shape[0], clip=True, eps=1E-3)
+            else:
+                labels[:, 1:] = xyxy2xywhn(labels[:, 1:], w=img.shape[1], h=img.shape[0], clip=True, eps=1E-3)
             # labels[:, 1:5] = xyxy2xywhn(labels[:, 1:5], w=img.shape[1], h=img.shape[0], clip=True, eps=1E-3)
 
         if self.augment:
@@ -592,14 +605,24 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
                 img = np.flipud(img)
                 if nl:
                     labels[:, 2] = 1 - labels[:, 2]  # body bbox flipud
-                    labels[:, 6::3] = 1 - labels[:, 6::3]  # body part or parts bbox flipud
+                    # labels[:, 6::3] = 1 - labels[:, 6::3]  # body part or parts bbox flipud
+                    '''find this augmentation bug in 2023-05-01'''
+                    if self.num_attrs:
+                        labels[:, :-self.num_attrs][:, 6::3] = 1 - labels[:, :-self.num_attrs][:, 6::3]
+                    else:
+                        labels[:, 6::3] = 1 - labels[:, 6::3]  # body part or parts bbox flipud
                     
             # Flip left-right
             if random.random() < hyp['fliplr']:
                 img = np.fliplr(img)
                 if nl:
                     labels[:, 1] = 1 - labels[:, 1]  # body bbox fliplr
-                    labels[:, 5::3] = 1 - labels[:, 5::3]  # body part or parts bbox fliplr
+                    # labels[:, 5::3] = 1 - labels[:, 5::3]  # body part or parts bbox fliplr
+                    '''find this augmentation bug in 2023-05-01'''
+                    if self.num_attrs:
+                        labels[:, :-self.num_attrs][:, 5::3] = 1 - labels[:, :-self.num_attrs][:, 5::3]
+                    else:
+                        labels[:, 5::3] = 1 - labels[:, 5::3]  # body part or parts bbox fliplr
 
             # Cutouts
             # labels = cutout(img, labels, p=0.5)
@@ -742,7 +765,10 @@ def load_mosaic(self, index):
         # Labels
         labels, segments = self.labels[index].copy(), self.segments[index].copy()
         if labels.size:
-            labels[:, 1:] = xywhn2xyxy(labels[:, 1:], w, h, padw, padh)  # normalized xywh to pixel xyxy format
+            if self.num_states:
+                labels[:, 1:-self.num_states] = xywhn2xyxy(labels[:, 1:-self.num_states], w, h, padw, padh)
+            else:
+                labels[:, 1:] = xywhn2xyxy(labels[:, 1:], w, h, padw, padh)  # normalized xywh to pixel xyxy format
             # labels[:, 1:5] = xywhn2xyxy(labels[:, 1:5], w, h, padw, padh)  # normalized xywh to pixel xyxy format
             segments = [xyn2xy(x, w, h, padw, padh) for x in segments]
         labels4.append(labels)
@@ -762,7 +788,8 @@ def load_mosaic(self, index):
                                        scale=self.hyp['scale'],
                                        shear=self.hyp['shear'],
                                        perspective=self.hyp['perspective'],
-                                       border=self.mosaic_border)  # border to remove
+                                       border=self.mosaic_border,  # border to remove
+                                       num_states=self.num_states) 
 
     return img4, labels4
 
@@ -805,7 +832,10 @@ def load_mosaic9(self, index):
         # Labels
         labels, segments = self.labels[index].copy(), self.segments[index].copy()
         if labels.size:
-            labels[:, 1:] = xywhn2xyxy(labels[:, 1:], w, h, padx, pady)  # normalized xywh to pixel xyxy format
+            if self.num_states:
+                labels[:, 1:-self.num_states] = xywhn2xyxy(labels[:, 1:-self.num_states], w, h, padx, pady)
+            else:
+                labels[:, 1:] = xywhn2xyxy(labels[:, 1:], w, h, padx, pady)  # normalized xywh to pixel xyxy format
             # labels[:, 1:5] = xywhn2xyxy(labels[:, 1:5], w, h, padw, padh)  # normalized xywh to pixel xyxy format
             segments = [xyn2xy(x, w, h, padx, pady) for x in segments]
         labels9.append(labels)
@@ -837,7 +867,8 @@ def load_mosaic9(self, index):
                                        scale=self.hyp['scale'],
                                        shear=self.hyp['shear'],
                                        perspective=self.hyp['perspective'],
-                                       border=self.mosaic_border)  # border to remove
+                                       border=self.mosaic_border,  # border to remove
+                                       num_states=self.num_states) 
 
     return img9, labels9
 
@@ -917,7 +948,8 @@ def autosplit(path='../datasets/coco128/images', weights=(0.9, 0.1, 0.0), annota
 
 def verify_image_label(args):
     # Verify one image-label pair
-    im_file, lb_file, prefix, num_offsets = args
+    # im_file, lb_file, prefix, num_offsets = args
+    im_file, lb_file, prefix, num_offsets, num_states = args
     nm, nf, ne, nc, msg, segments = 0, 0, 0, 0, '', []  # number (missing, found, empty, corrupt), message, segments
     try:
         # verify images
@@ -950,10 +982,12 @@ def verify_image_label(args):
                 # assert np.unique(l, axis=0).shape[0] == l.shape[0], 'duplicate labels'
             else:
                 ne = 1  # label empty
-                l = np.zeros((0, 5 + num_offsets * 3 // 2), dtype=np.float32)
+                # l = np.zeros((0, 5 + num_offsets * 3 // 2), dtype=np.float32)
+                l = np.zeros((0, 5 + num_offsets * 3 // 2 + num_states), dtype=np.float32)
         else:
             nm = 1  # label missing
-            l = np.zeros((0, 5 + num_offsets * 3 // 2), dtype=np.float32)
+            # l = np.zeros((0, 5 + num_offsets * 3 // 2), dtype=np.float32)
+            l = np.zeros((0, 5 + num_offsets * 3 // 2 + num_states), dtype=np.float32)
         return im_file, l, shape, segments, nm, nf, ne, nc, msg
     except Exception as e:
         nc = 1

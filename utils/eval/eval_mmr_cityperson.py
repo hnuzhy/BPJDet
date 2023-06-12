@@ -572,7 +572,8 @@ class COCOMReval:
             if self.body_part == 'head':
                 g_f = [g['h_bbox'] for g in gt]
             d_b = [d['bbox'] for d in dt]
-            d_f = [d['f_bbox'] for d in dt]
+            # d_f = [d['f_bbox'] for d in dt]
+            d_f = [d['t_bbox'] for d in dt]
         else:
             raise Exception('unknown iouType for iou computation')
 
@@ -644,17 +645,20 @@ class COCOMReval:
         gt = [gt[i] for i in gtind]
 
         # select out body-face pairs
-        dt = [i for i in dt if i['f_score'] != 0.0]
+        # dt = [i for i in dt if i['f_score'] != 0.0]
+        dt = [i for i in dt if i['t_score'] != 0.0]
         # sorted by body_score
         # dtind = np.argsort([-d['score'] for d in dt], kind='mergesort')
         # sorted by (body_score + face_score)
-        dtind = np.argsort([-(d['score'] + d['f_score']) for d in dt], kind='mergesort')
+        # dtind = np.argsort([-(d['score'] + d['f_score']) for d in dt], kind='mergesort')
+        dtind = np.argsort([-(d['score'] + d['t_score']) for d in dt], kind='mergesort')
 
         dt = [dt[i] for i in dtind[0:maxDet]]
         # exclude dt out of height range
 
         dt = [d for d in dt if (d['height'] >= hRng[0] / self.params.expFilter and d['height'] < hRng[1] * self.params.expFilter) and
-              d['f_bbox'] != None and (d['f_bbox'][3] >= f_hRng[0] and d['f_bbox'][3] < f_hRng[1])]
+              d['t_bbox'] != None and (d['t_bbox'][3] >= f_hRng[0] and d['t_bbox'][3] < f_hRng[1])]
+              # d['f_bbox'] != None and (d['f_bbox'][3] >= f_hRng[0] and d['f_bbox'][3] < f_hRng[1])]
 
         dtind = np.array([int(d['id'] - dt[0]['id']) for d in dt])
 
@@ -727,7 +731,8 @@ class COCOMReval:
                 'gtIds':        [g['id'] for g in gt],
                 'dtMatches':    dtm,
                 'gtMatches':    gtm,
-                'dtScores':     [d['score'] + d['f_score'] for d in dt],
+                'dtScores':     [d['score'] + d['t_score'] for d in dt],
+                # 'dtScores':     [d['score'] + d['f_score'] for d in dt],
                 # 'dtScores':     [d['score']for d in dt],
                 'gtIgnore':     gtIg,
                 'dtIgnore':     dtIg,

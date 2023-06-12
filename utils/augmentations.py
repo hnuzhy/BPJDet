@@ -119,7 +119,7 @@ def letterbox(im, new_shape=(640, 640), color=(114, 114, 114), auto=True, scaleF
 
 
 def random_perspective(im, targets=(), segments=(), degrees=10, translate=.1, scale=.1, shear=10, perspective=0.0,
-                       border=(0, 0)):
+                       border=(0, 0), num_states=0):
     # torchvision.transforms.RandomAffine(degrees=(-10, 10), translate=(.1, .1), scale=(.9, 1.1), shear=(-10, 10))
     # targets = [cls, xyxy]
 
@@ -208,7 +208,10 @@ def random_perspective(im, targets=(), segments=(), degrees=10, translate=.1, sc
         n = len(targets)
         if n and targets.shape[1] > 5:
             # warp bbox center points of body-object or body-part-object
-            xy = targets[:, 5:].reshape(-1, 3)
+            if num_states:
+                xy = targets[:, 5:-num_states].reshape(-1, 3)
+            else:
+                xy = targets[:, 5:].reshape(-1, 3)
             vis = xy[:, 2:].copy()
             xy[:, 2:] = 1
             xy = xy @ M.T  # transform
@@ -221,7 +224,10 @@ def random_perspective(im, targets=(), segments=(), degrees=10, translate=.1, sc
             )
             vis[out_mask] = 0
             left_points = np.concatenate((xy, vis), axis=-1)
-            targets[:, 5:] = left_points.reshape(targets.shape[0], -1)
+            if num_states:
+                targets[:, 5:-num_states] = left_points.reshape(targets.shape[0], -1)
+            else:
+                targets[:, 5:] = left_points.reshape(targets.shape[0], -1)
             
             
     return im, targets
