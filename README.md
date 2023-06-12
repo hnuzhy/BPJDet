@@ -106,7 +106,7 @@ original images [train:val] = [18858:1629](20487), and instances [train:val] = [
 ### COCOHumanParts
 * Newly added and only suitable to BPJDetPlus project.
 * [COCOHumanParts](https://github.com/soeaver/Hier-R-CNN#dataset) contains 66,808 images with 64,115 in train-set and 2,693 in val-set. It has inherited bounding-box of person category from official COCO, and labeled the locations of six body-parts (face, head, right-hand/left-hand and right-foot/left-foot) in each instance if it is visible.
-* Download images from MS-COCO official website and annotations of COCOHumanParts from GOOGLE Drive https://drive.google.com/drive/folders/1pT8aOTlVskaAtMadeAHzRrnxnEIxZbV8.
+* Download images from MS-COCO official website and annotations of COCOHumanParts from [GOOGLE Drive](https://drive.google.com/drive/folders/1pT8aOTlVskaAtMadeAHzRrnxnEIxZbV8).
 * Process official annotations of COCOHumanParts for our BPJDetPlus task by running `python tools/get_anno_HumanParts_v2.py`.
 ```bash
 # Dataset info stat after processing:
