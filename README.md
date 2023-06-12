@@ -61,7 +61,7 @@ Codes for my paper "[BPJDet: Extended Object Representation for Generic Body-Par
 
 * **Environment:** Anaconda, Python3.8, PyTorch1.10.0(CUDA11.2), wandb
 ```bash
-$ git clone https://github.com/hnuzhy/BPJDet.git
+$ git clone -b BPJDetPlus https://github.com/hnuzhy/BPJDet.git
 $ pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 # Codes are only evaluated on GTX3090 + CUDA11.2 + PyTorch1.10.0.
