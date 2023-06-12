@@ -66,6 +66,7 @@ $ pip3 install torch==1.10.0+cu111 torchvision==0.11.1+cu111 torchaudio==0.10.0+
 ## Dataset Preparing
 
 ### CityPersons
+* *Being suitable to both BPJDet and BPJDetPlus projects.*
 * [CityPersons](https://arxiv.org/abs/1702.05693) is a new set of person annotations on top of the [Cityscapes](https://www.cityscapes-dataset.com/) dataset.
 * Download images of CityPersons from Cityscapes website https://www.cityscapes-dataset.com/.
 * Download annotations from [GoogleDrive](https://drive.google.com/drive/folders/1PxGTo_SE8O56r0qw7DgmR3Lk-eokS0X0), which contains the original body boxes and newly annotated head/face boxes by [BFJDet](https://github.com/AibeeDetect/BFJDet#data-preparing). You will get three json files from the ground-truth folder `instances_train_bhfmatch_new.json`, `instances_val_bhfmatch_new.json` and `instances_val_bf_new.json`.
@@ -79,6 +80,7 @@ original images [train:val] = [2415:500](2915), and instances [train:val] = [221
 ```
 
 ### CrowdHuman
+* *Being suitable to both BPJDet and BPJDetPlus projects.*
 * [CrowdHuman](https://www.crowdhuman.org/) is a benchmark dataset focusing on human to better evaluate detectors in crowd scenarios.
 * Download images of CrowdHuman from website http://www.crowdhuman.org/.
 * Download annotations from [GoogleDrive](https://drive.google.com/drive/folders/1Sk2IAmm_wTVh289RKs5FiU17siWrJJCu), which contains the original body/head boxes and newly annotated face boxes by [BFJDet](https://github.com/AibeeDetect/BFJDet#data-preparing). You will get two json files `instances_train_full_bhf_new.json` and `instances_val_full_bhf_new.json`.
@@ -92,6 +94,7 @@ original images [train:val] = [15000:4370](2915), and instances [train:val] = [4
 ```
 
 ### BodyHands
+* *Being suitable to both BPJDet and BPJDetPlus projects.*
 * [BodyHands](http://vision.cs.stonybrook.edu/~supreeth/BodyHands/) is a large-scale dataset, and has images with annotations for hand and body locations and their correspondences.
 * Download images and annotations of BodyHands from website http://vision.cs.stonybrook.edu/~supreeth/BodyHands/.
 * The original using and training of BodyHands are in https://github.com/cvlab-stonybrook/BodyHands.
@@ -104,9 +107,9 @@ original images [train:val] = [18858:1629](20487), and instances [train:val] = [
 ```
 
 ### COCOHumanParts
-* Newly added and only suitable to BPJDetPlus project.
-* [COCOHumanParts](https://github.com/soeaver/Hier-R-CNN#dataset) contains 66,808 images with 64,115 in train-set and 2,693 in val-set. It has inherited bounding-box of person category from official COCO, and labeled the locations of six body-parts (face, head, right-hand/left-hand and right-foot/left-foot) in each instance if it is visible.
-* Download images from MS-COCO official website and annotations of COCOHumanParts from [GOOGLE Drive](https://drive.google.com/drive/folders/1pT8aOTlVskaAtMadeAHzRrnxnEIxZbV8).
+* *Newly added and only suitable to BPJDetPlus project.*
+* [COCOHumanParts](https://github.com/soeaver/Hier-R-CNN#dataset) has inherited bounding-box of person category from official MS-COCO, and labeled the locations of six body-parts (face, head, right-hand/left-hand and right-foot/left-foot) in each instance if it is visible.
+* Download images from the MS-COCO official website and annotations of COCOHumanParts from [Google Drive](https://drive.google.com/drive/folders/1pT8aOTlVskaAtMadeAHzRrnxnEIxZbV8).
 * Process official annotations of COCOHumanParts for our BPJDetPlus task by running `python tools/get_anno_HumanParts_v2.py`.
 ```bash
 # Dataset info stat after processing:
@@ -126,9 +129,42 @@ original images [train:val] = [64115:2693](66808), and instances [train:val] = [
 ```
 
 ### CroHD and SCUT-Head
-
+* *Newly added and only suitable to BPJDetPlus project. For the downstream application **Body-Head for Accurate Crowd Counting**.*
+* The two datasets do not include body boxes, and were originally released for dense head tracking and crowded head detection tasks, respectively. Thus, it is not feasible to train BPJDet/BPJDetPlus directly on them. Instead, we decide to apply *body-head* joint detection models trained on `CrowdHuman` to them in a cross-domain generalization manner. 
+* **CroHD Dataset**: [CroHD](https://motchallenge.net/data/Head_Tracking_21/) is collected across 9 HD sequences captured from an elevated viewpoint. All sequences are open scenes like crossings and train stations with super high crowd densities. CroHD only provides annotations in 4 train-set sequences. More details can be found in its [official website](https://project.inria.fr/crowdscience/project/dense-crowd-head-tracking/)
+```bash
+[CroHD train-set]
+#                               Frames  Scenario        Tracks  Boxes       Density
+# HT21-01 --> (det, gt, img1)   429     Indoor          85      21,456      50.0
+# HT21-02 --> (det, gt, img1)   3,315   Outdoor, night  1,276   733,622     222.0
+# HT21-03 --> (det, gt, img1)   1,000   Outdoor, day    811     258,012     258.0
+# HT21-04 --> (det, gt, img1)   997     Indoor          580     175,703     176.2
+Total Frames: 5741,     Total Boxes: 1188793
+```
+* **SCUT-Head Dataset**: [SCUT-Head](https://github.com/HCIILAB/SCUT-HEAD-Dataset-Release) has two parts A and B. We utilize the Part_B which mostly focuses on indoor scenes like classrooms and meeting rooms.
+```bash
+[SCUT_HEAD_Part_A]
+Total Frames: 2000,     Total Boxes: 67324
+[SCUT_HEAD_Part_B]
+Total Frames: 2405,     Total Boxes: 43930
+```
 
 ### ContactHands
+* *Newly added and only suitable to BPJDetPlus project. For the downstream application **Body-Hand for Hand Contact Estimation**.*
+* [ContactHands](http://vision.cs.stonybrook.edu/~supreeth/ContactHands_data_website/) is used for improving performance by leveraging the advanced `body-hand` association ability of BPJDetPlus. It is a large-scale dataset of in-the-wild images for hand detection and contact recognition. It has annotations for 20,506 images, of which 18,877 form the train-set and 1,629 form the test-set. There are 52,050 and 5,983 hand instances in train and test sets, respectively. More details can be found in its [official code](https://github.com/cvlab-stonybrook/ContactHands).
+* Download zip file of images and annotations of ContactHands from [Google Drive](https://drive.google.com/file/d/1bhl1ZJjkSr3lTP61CNpj6KqIAPCSYJ3q/view). This dataset is built by the same authors of `BodyHands` dataset and has a similar structure with `BodyHands`.
+* Process official annotations of ContactHands for our BPJDetPlus task by running `python tools/get_anno_ContactHands.py`.
+* For each hand instance, the ContactHands annotates the four contact states by answering No (0), Yes (1), or Unsure (2).
+```bash
+original images [train:val] = [18877:1629](20506), and hand instances [train:val] = [52050:5983](58033)
+left images [train:val] = [18861:1629](20490), and instances [train:val] = [56066:7048](63114)
+[person]    (images --> train:val=18858:1629, instances --> train:val=56066:7048 (63114) )
+[hand]      (images --> train:val=18858:1629, instances --> train:val=51892:5982 (57874) )
+
+hand_contact_states_cnt for [NC, SC, PC, OC] with [No(0), Yes(1), or Unsure(2)]
+train-set:  [[34751, 16496, 645], [41795, 9396, 701], [48962, 2698, 232], [26296, 24994, 602]]
+val-set:    [[4329, 1345, 308], [4228, 1388, 366], [5773, 195, 14], [2866, 2976, 140]]
+```
 
 
 ## Training and Testing
@@ -362,6 +398,12 @@ $ python val.py --rect --data data/JointBP_CrowdHuman_head.yaml --img 1536 \
 [AP@.5&MR]: AP_body: 0.811, AP_part: 0.761, MR_body: 0.462, MR_part: 0.480, mMR_avg: 0.645
 [mMR_list]: Reasonable: 0.464, Small: 0.582, Heavy: 0.864, All: 0.670
 ```
+
+## Downstream Applications
+
+### Body-Head for Accurate Crowd Counting
+
+### Body-Hand for Hand Contact Estimation
 
 
 ## Inference
