@@ -1,8 +1,5 @@
-# BPJDet
-Codes for my paper "[Body-Part Joint Detection and Association via Extended Object Representation](https://arxiv.org/abs/2212.07652)" accepted by ICME2023
-
-* [**2023-04-24**] The extended version of our conference paper is released in [BPJDet: Extended Object Representation for Generic Body-Part Joint Detection](https://arxiv.org/abs/2304.10765)
-* [**2023-03-15**] We have decided to release our BPJDet-S/M/L pretrained models on CrowdHuman and BodyHands in [Hugging Face](https://huggingface.co/HoyerChou/BPJDet). Please follow the [[Inference](#inference)] section to test on your own images/videos.
+# BPJDetPlus
+Codes for my paper "[BPJDet: Extended Object Representation for Generic Body-Part Joint Detection](https://arxiv.org/abs/2304.10765)" which is an extended version of our conference paper ICME2023.
 
 <table>
 <tr>
@@ -10,13 +7,13 @@ Codes for my paper "[Body-Part Joint Detection and Association via Extended Obje
 <th> Body-Head Demo 2 (no tracking) </th>
 </tr>
 <tr>
-<td><img src="./materials/000522_mpii_test_BPJDet.gif" height="270"></td>
-<td><img src="./materials/002376_mpii_test_BPJDet.gif" height="270"></td> 
+<td><img src="./materials/000522_mpii_test_BPJDet-bodyparts-ezgif.gif" height="270"></td>
+<td><img src="./materials/002376_mpii_test_BPJDet-bodyparts-ezgif.gif" height="270"></td> 
 </tr>
 </table>
 
 ## Paper Abstract
-> The detection of human body and its related parts (e.g., face, head or hands) have been intensively studied and greatly improved since the breakthrough of deep CNNs. However, most of these detectors are trained independently, making it a challenging task to associate detected body parts with people. This paper focuses on the problem of joint detection of human body and its corresponding parts. Specifically, we propose a novel extended object representation that integrates the center location offsets of body or its parts, and construct a dense single-stage anchor-based Body-Part Joint Detector (BPJDet). Body-part associations in BPJDet are embedded into the unified representation which contains both the semantic and geometric information. Therefore, BPJDet does not suffer from error-prone association post-matching, and has a better accuracy-speed trade-off. Furthermore, BPJDet can be seamlessly generalized to jointly detect any body part. To verify the effectiveness and superiority of our method, we conduct extensive experiments on the CityPersons, CrowdHuman and BodyHands datasets. The proposed BPJDet detector achieves state-of-the-art association performance on these three benchmarks while maintains high accuracy of detection.
+> Detection of human body and its parts (e.g., head or hands) has been intensively studied. However, most of these CNNs-based detectors are trained independently, making it difficult to associate detected parts with body. In this paper, we focus on the joint detection of human body and its corresponding parts. Specifically, we propose a novel extended object representation integrating center-offsets of body parts, and construct a dense one-stage generic Body-Part Joint Detector (BPJDet). In this way, body-part associations are neatly embedded in a unified object representation containing both semantic and geometric contents. Therefore, we can perform multi-loss optimizations to tackle multi-tasks synergistically. BPJDet does not suffer from error-prone post matching, and keeps a better trade-off between speed and accuracy. Furthermore, BPJDet can be generalized to detect any one or more body parts. To verify the superiority of BPJDet, we conduct experiments on three body-part datasets (CityPersons, CrowdHuman and BodyHands) and one body-parts dataset COCOHumanParts. While keeping high detection accuracy, BPJDet achieves state-of-the-art association performance on all datasets comparing with its counterparts. Besides, we show benefits of advanced body-part association capability by improving performance of two representative downstream applications: accurate crowd head detection and hand contact estimation.
 
 ## Table of contents
 <!--ts-->
@@ -26,11 +23,18 @@ Codes for my paper "[Body-Part Joint Detection and Association via Extended Obje
   * [CityPersons](#citypersons)
   * [CrowdHuman](#crowdhuman)
   * [BodyHands](#bodyhands)
+  * [COCOHumanParts](#cocohumanparts)
+  * [CroHD and SCUT-Head](#crohd-and-scut-head)
+  * [ContactHands](#contacthands)
 - [Training and Testing](#training-and-testing)
   * [Configs](#configs)
   * [Body-Face Task](#body-face-task)
   * [Body-Hand Task](#body-hand-task)
   * [Body-Head Task](#body-head-task)
+  * [Body-Parts Task](#body-parts-task)
+- [Downstream Applications](#downstream applications)
+  * [Body-Head for Accurate Crowd Counting](#Body-Head-for-Accurate-Crowd-Counting)
+  * [Body-Hand for Hand Contact Estimation](#Body-Hand-for-Hand-Contact-Estimation)
 - [Inference](#inference)
 - [References](#references)
 - [Licenses](#licenses) 
@@ -40,11 +44,11 @@ Codes for my paper "[Body-Part Joint Detection and Association via Extended Obje
 
 ## Illustrations
 
-* **Fig. 1.** The illustration of the difference between our proposed single-stage BPJDet and other two-stage body-part joint detection methods.
-![example1](./materials/illustrations.png)
+* **Fig. 1.** The illustration of the difference between our proposed single-stage BPJDet and other two-stage body-part joint detection methods (e.g., `JointDet`, `BFJDet`, `BodyHands` and `Hier R-CNN`). Their two-stage refers to training the detection and association modules separately, unlike our one-stage joint detection and association framework. We visualize bodies and parts that belong to the same person using bounding boxes with the same color.
+![example1](./materials/illustrations.jpg)
 
-* **Fig. 2.** **Left:** Our BPJDet adopts YOLOv5 as the backbone. **Right:** Examples for grid cell predictions with human body objects in red color and body part objects (e.g., face) in green color.
-![example2](./materials/architecture.png)
+* **Fig. 2.** Our BPJDet adopts YOLOv5 as the backbone to extract features and predict grids from one augmented input image. During training, target grids are used to supervise the elaborately designed multi-loss function. In inference stage, NMS and association decoding algorithm are sequentially applied on predicted objects to obtain final human body boxes set and related body parts set.
+![example2](./materials/architecture.jpg)
 
 
 ## Installation
@@ -98,6 +102,33 @@ original images [train:val] = [18858:1629](20487), and instances [train:val] = [
 [person]    (images --> train:val=18858:1629, instances --> train:val=56060:7048 (63108))
 [hand]      (images --> train:val=18858:1629, instances --> train:val=51901:5983 (57884))
 ```
+
+### COCOHumanParts
+* Newly added and only suitable to BPJDetPlus project.
+* [COCOHumanParts](https://github.com/soeaver/Hier-R-CNN#dataset) contains 66,808 images with 64,115 in train-set and 2,693 in val-set. It has inherited bounding-box of person category from official COCO, and labeled the locations of six body-parts (face, head, right-hand/left-hand and right-foot/left-foot) in each instance if it is visible.
+* Download images from MS-COCO official website and annotations of COCOHumanParts from GOOGLE Drive https://drive.google.com/drive/folders/1pT8aOTlVskaAtMadeAHzRrnxnEIxZbV8.
+* Process official annotations of COCOHumanParts for our BPJDetPlus task by running `python tools/get_anno_HumanParts_v2.py`.
+```bash
+# Dataset info stat after processing:
+original images [train:val] = [64115:2693](66808), and instances [train:val] = [257306:10777](268083)
+# [After running the get_anno_HumanParts.py script file][fisrtly write in 2023-03-19]
+[person]    (images --> train:val=64115:2693, instances --> train:val=257306:10777 (268083))
+[parts]     (images --> train:val=63121:2662, instances --> train:val=728394:31044 (759438))
+[all]       (images --> train:val=64115:2693, instances --> train:val=985700:41821 (1027521))
+# [After running the get_anno_HumanParts_v2.py script file][re-write in 2023-03-20]
+[person]    (instances --> train:val    =   257306:10777    (268083))
+[head]      (instances --> train:val    =   223049:9351     (232400))
+[face]      (instances --> train:val    =   153195:6913     (160108))
+[lefthand]  (instances --> train:val    =   96078:4222      (100300))
+[righthand] (instances --> train:val    =   100205:4324     (104529))
+[leftfoot]  (instances --> train:val    =   77997:3134      ( 81131))
+[rightfoot] (instances --> train:val    =   77870:3100      ( 80970))
+```
+
+### CroHD and SCUT-Head
+
+
+### ContactHands
 
 
 ## Training and Testing
