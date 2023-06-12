@@ -3,8 +3,8 @@ Codes for my paper "[BPJDet: Extended Object Representation for Generic Body-Par
 
 <table>
 <tr>
-<th> Body-Head Demo 1 (no tracking) </th>
-<th> Body-Head Demo 2 (no tracking) </th>
+<th> Body-Parts by BPJDetPlus - Demo 1 (no tracking) </th>
+<th> Body-Parts by BPJDetPlus - Demo 2 (no tracking) </th>
 </tr>
 <tr>
 <td><img src="./materials/000522_mpii_test_BPJDet-bodyparts-ezgif.gif" height="270"></td>
