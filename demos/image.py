@@ -151,13 +151,24 @@ if __name__ == '__main__':
                 if rh_score != 0:
                     [px1, py1, px2, py2] = rh_bbox
                     cv2.rectangle(im0, (int(px1), int(py1)), (int(px2), int(py2)), color, thickness=args.line_thick)
-        
+            
+            if data['dataset'] == "HumanParts":  # data['num_offsets'] is 12
+                cv2.rectangle(im0, (int(x1), int(y1)), (int(x2), int(y2)), color, thickness=args.line_thick)
+                for cls_ind in range(data['num_offsets']//2):
+                    t_score, t_bbox = point[cls_ind][2], point[cls_ind][3:]  # body-part, bbox format [x1, y1, x2, y2]
+                    if t_score != 0:
+                        [px1, py1, px2, py2] = t_bbox
+                        cv2.rectangle(im0, (int(px1), int(py1)), (int(px2), int(py2)), color, thickness=args.line_thick)
+            
         if args.counting:
             cv2.putText(im0, "Num:"+str(instance_counting), (5, 25), cv2.FONT_HERSHEY_SIMPLEX, 1, 
                 (0,0,255), 2, cv2.LINE_AA)
-            
-        # cv2.imwrite(single_path[:-4]+"_res.jpg", im0)
-        cv2.imwrite(single_path[:-4]+"_res_%s.jpg"%(data['part_type']), im0)
+        
+        if data['dataset'] == "HumanParts":
+            cv2.imwrite(single_path[:-4]+"_res_parts.jpg", im0)
+        else:
+            # cv2.imwrite(single_path[:-4]+"_res.jpg", im0)
+            cv2.imwrite(single_path[:-4]+"_res_%s.jpg"%(data['part_type']), im0)
 
             
         

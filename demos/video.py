@@ -148,6 +148,14 @@ if __name__ == '__main__':
                     [px1, py1, px2, py2] = rh_bbox
                     cv2.rectangle(im0, (int(px1), int(py1)), (int(px2), int(py2)), color, thickness=args.line_thick)
 
+            if data['dataset'] == "HumanParts":  # data['num_offsets'] is 12
+                cv2.rectangle(im0, (int(x1), int(y1)), (int(x2), int(y2)), color, thickness=args.line_thick)
+                for cls_ind in range(data['num_offsets']//2):
+                    t_score, t_bbox = point[cls_ind][2], point[cls_ind][3:]  # body-part, bbox format [x1, y1, x2, y2]
+                    if t_score != 0:
+                        [px1, py1, px2, py2] = t_bbox
+                        cv2.rectangle(im0, (int(px1), int(py1)), (int(px2), int(py2)), color, thickness=args.line_thick)
+
         if i == 0:
             t = time_sync() - t0
         else:
