@@ -34,7 +34,8 @@ class Detect(nn.Module):
     stride = None  # strides computed during build
     onnx_dynamic = False  # ONNX export parameter
 
-    def __init__(self, nc=80, anchors=(), ch=(), inplace=True, num_offsets=0):  # detection layer
+    # def __init__(self, nc=80, anchors=(), ch=(), inplace=True, num_offsets=0):  # detection layer
+    def __init__(self, nc=80, anchors=(), ch=(), inplace=True, num_offsets=0, num_states=0):  # detection layer
         super().__init__()
         self.nc = nc  # number of classes
         self.no = nc + 5  # number of outputs per anchor
@@ -47,6 +48,7 @@ class Detect(nn.Module):
         self.m = nn.ModuleList(nn.Conv2d(x, self.no * self.na, 1) for x in ch)  # output conv
         self.inplace = inplace  # use in-place ops (e.g. slice assignment)
         self.num_offsets = num_offsets
+        self.num_states = num_states
         
     def forward(self, x):
         z = []  # inference output
@@ -64,7 +66,12 @@ class Detect(nn.Module):
                     y[..., 0:2] = (y[..., 0:2] * 2. - 0.5 + self.grid[i]) * self.stride[i]  # xy
                     y[..., 2:4] = (y[..., 2:4] * 2) ** 2 * self.anchor_grid[i]  # wh
 
-                    if hasattr(self, 'num_offsets') and self.num_offsets:
+                    try:  # self.num_states is only right for ContactHands dataset
+                        ind_left, ind_right = self.num_offsets + self.num_states, self.num_states
+                        y[..., -ind_left:-ind_right] = y[..., -ind_left:-ind_right] * 4. - 2.
+                        y[..., -ind_left:-ind_right] *= self.anchor_grid[i].repeat((1, 1, 1, 1, self.num_offsets // 2))
+                        y[..., -ind_left:-ind_right] += (self.grid[i] * self.stride[i]).repeat((1, 1, 1, 1, self.num_offsets // 2))
+                    except:  # other models trained on non-ContactHands datasets have no self.num_states
                         y[..., -self.num_offsets:] = y[..., -self.num_offsets:] * 4. - 2.
                         y[..., -self.num_offsets:] *= self.anchor_grid[i].repeat((1, 1, 1, 1, self.num_offsets // 2))
                         y[..., -self.num_offsets:] += (self.grid[i] * self.stride[i]).repeat((1, 1, 1, 1, self.num_offsets // 2))
@@ -87,7 +94,8 @@ class Detect(nn.Module):
 
 class Model(nn.Module):
     ''' model, input channels, number of classes'''
-    def __init__(self, cfg='yolov5s.yaml', ch=3, nc=None, anchors=None, num_offsets=0, autobalance=False):
+    # def __init__(self, cfg='yolov5s.yaml', ch=3, nc=None, anchors=None, num_offsets=0, autobalance=False):
+    def __init__(self, cfg='yolov5s.yaml', ch=3, nc=None, anchors=None, num_offsets=0, num_states=0, autobalance=False):
         super().__init__()
         if isinstance(cfg, dict):
             self.yaml = cfg  # model dict
@@ -101,7 +109,8 @@ class Model(nn.Module):
         ch = self.yaml['ch'] = self.yaml.get('ch', ch)  # input channels
         if nc + num_offsets and nc + num_offsets != self.yaml['nc']:
             LOGGER.info(f"Overriding model.yaml nc={self.yaml['nc']} with nc={nc + num_offsets}")
-            self.yaml['nc'] = nc + num_offsets  # override yaml value
+            # self.yaml['nc'] = nc + num_offsets  # override yaml value
+            self.yaml['nc'] = nc + num_offsets + num_states  # override yaml value
         if anchors:
             LOGGER.info(f'Overriding model.yaml anchors with anchors={anchors}')
             self.yaml['anchors'] = round(anchors)  # override yaml value
@@ -109,6 +118,7 @@ class Model(nn.Module):
         self.names = [str(i) for i in range(self.yaml['nc'])]  # default names
         self.inplace = self.yaml.get('inplace', True)
         self.num_offsets = num_offsets
+        self.num_states = num_states
         if autobalance:
             self.loss_coeffs = nn.Parameter(torch.zeros(2))
         # LOGGER.info([x.shape for x in self.forward(torch.zeros(1, ch, 64, 64))])
@@ -123,6 +133,7 @@ class Model(nn.Module):
             check_anchor_order(m)
             self.stride = m.stride
             m.num_offsets = self.num_offsets
+            m.num_states = self.num_states
             m.nc = nc
             self._initialize_biases()  # only run once
             # LOGGER.info('Strides: %s' % m.stride.tolist())
@@ -184,7 +195,12 @@ class Model(nn.Module):
         # de-scale predictions following augmented inference (inverse operation)
         if self.inplace:
             p[..., :4] /= scale  # de-scale bbox
-            p[..., -self.num_offsets:] /= scale  # de-scale bbox center points of body part
+            
+            try:  # self.num_states is only right for ContactHands dataset
+                p[..., -self.num_offsets-self.num_states:-self.num_states] /= scale  # de-scale bbox center points of body part
+            except:  # other models trained on non-ContactHands datasets have no self.num_states
+                p[..., -self.num_offsets:] /= scale  # de-scale bbox center points of body part
+                
             if flips == 2:
                 p[..., 1] = img_size[0] - p[..., 1]  # de-flip ud
             elif flips == 3:
