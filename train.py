@@ -104,8 +104,13 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
     # num_coords = data_dict.get('num_coords', 0)
     # num_angles = data_dict.get('num_angles', 0)
     num_offsets = data_dict.get('num_offsets', 0)
+    try:
+        num_states = data_dict.get('num_states', 0)  # only available for the dataset ContactHands
+    except:
+        num_states = 0
     
     hyp['part_w'] = opt.body_part_w  # add this for changing hyp['part_w'] by python command line [2022.02.26]
+    hyp['state_w'] = opt.contact_w  # add this for changing hyp['state_w'] by python command line [2023.04.04]
 
     # Model
     pretrained = weights.endswith('.pt')
@@ -113,14 +118,18 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
         with torch_distributed_zero_first(RANK):
             weights = attempt_download(weights)  # download if not found locally
         ckpt = torch.load(weights, map_location=device)  # load checkpoint
-        model = Model(cfg or ckpt['model'].yaml, ch=3, nc=nc, anchors=hyp.get('anchors'), num_offsets=num_offsets).to(device)  # create
+        # model = Model(cfg or ckpt['model'].yaml, ch=3, nc=nc, anchors=hyp.get('anchors'), num_offsets=num_offsets).to(device)  # create
+        model = Model(cfg or ckpt['model'].yaml, ch=3, nc=nc, anchors=hyp.get('anchors'), 
+            num_offsets=num_offsets, num_states=num_states).to(device)  # create
         exclude = ['anchor'] if (cfg or hyp.get('anchors')) and not resume else []  # exclude keys
         csd = ckpt['model'].float().state_dict()  # checkpoint state_dict as FP32
         csd = intersect_dicts(csd, model.state_dict(), exclude=exclude)  # intersect
         model.load_state_dict(csd, strict=False)  # load
         LOGGER.info(f'Transferred {len(csd)}/{len(model.state_dict())} items from {weights}')  # report
     else:
-        model = Model(cfg, ch=3, nc=nc, anchors=hyp.get('anchors'), num_offsets=num_offsets).to(device)  # create
+        # model = Model(cfg, ch=3, nc=nc, anchors=hyp.get('anchors'), num_offsets=num_offsets).to(device)  # create
+        model = Model(cfg, ch=3, nc=nc, anchors=hyp.get('anchors'), 
+            num_offsets=num_offsets, num_states=num_states).to(device)  # create
 
     # Freeze
     freeze = [f'model.{x}.' for x in range(freeze)]  # layers to freeze
@@ -213,7 +222,7 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
                                               hyp=hyp, augment=(not opt.noaug), cache=opt.cache, rect=opt.rect, rank=RANK,
                                               workers=workers, image_weights=opt.image_weights, quad=opt.quad,
                                               # prefix=colorstr('train: '), kp_flip=kp_flip, kp_bbox=kp_bbox)
-                                              prefix=colorstr('train: '), num_offsets=num_offsets)
+                                              prefix=colorstr('train: '), num_offsets=num_offsets, num_states=num_states)
     mlc = int(np.concatenate(dataset.labels, 0)[:, 0].max())  # max label class
     nb = len(train_loader)  # number of batches
     assert mlc < nc, f'Label class {mlc} exceeds nc={nc} in {data}. Possible class labels are 0-{nc - 1}'
@@ -224,7 +233,7 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
                                        hyp=hyp, cache=None if noval else opt.cache, rect=False, rank=-1,
                                        workers=workers, pad=0.5,
                                        # prefix=colorstr('val: '), kp_flip=kp_flip, kp_bbox=kp_bbox)[0]
-                                       prefix=colorstr('val: '), num_offsets=num_offsets)[0]
+                                       prefix=colorstr('val: '), num_offsets=num_offsets, num_states=num_states)[0]
 
         if not resume:
             # labels = np.concatenate(dataset.labels, 0)
@@ -250,6 +259,7 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
     hyp['cls'] *= nc / 80. * 3. / nl  # scale to classes and layers
     hyp['obj'] *= (imgsz / 640) ** 2 * 3. / nl  # scale to image size and layers
     hyp['part_w'] *= 3. / nl
+    hyp['state_w'] *= 3. / nl
     hyp['label_smoothing'] = opt.label_smoothing
     model.nc = nc  # attach number of classes to model
     model.hyp = hyp  # attach hyperparameters to model
@@ -267,7 +277,7 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
     scheduler.last_epoch = start_epoch - 1  # do not move
     scaler = amp.GradScaler(enabled=cuda)
     stopper = EarlyStopping(patience=opt.patience)
-    compute_loss = ComputeLoss(model, autobalance=False, num_offsets=num_offsets)  # init loss class
+    compute_loss = ComputeLoss(model, autobalance=False, num_offsets=num_offsets, num_states=num_states)  # init loss class
     LOGGER.info(f'Image sizes {imgsz} train, {imgsz} val\n'
                 f'Using {train_loader.num_workers} dataloader workers\n'
                 f"Logging results to {colorstr('bold', save_dir)}\n"
@@ -287,11 +297,17 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
         # b = int(random.uniform(0.25 * imgsz, 0.75 * imgsz + gs) // gs * gs)
         # dataset.mosaic_border = [b - imgsz, -b]  # height, width borders
 
-        mloss = torch.zeros(4, device=device)  # mean losses
+        if num_states:
+            mloss = torch.zeros(5, device=device)  # mean losses
+        else:
+            mloss = torch.zeros(4, device=device)  # mean losses
         if RANK != -1:
             train_loader.sampler.set_epoch(epoch)
         pbar = enumerate(train_loader)
-        LOGGER.info(('\n' + '%10s' * 8) % ('Epoch', 'gpu_mem', 'box', 'obj', 'cls', 'bpl', 'labels', 'img_size'))
+        if num_states:
+            LOGGER.info(('\n' + '%10s' * 9) % ('Epoch', 'gpu_mem', 'box', 'obj', 'cls', 'bpl', 'cts', 'labels', 'img_size'))
+        else:
+            LOGGER.info(('\n' + '%10s' * 8) % ('Epoch', 'gpu_mem', 'box', 'obj', 'cls', 'bpl', 'labels', 'img_size'))
         if RANK in [-1, 0]:
             pbar = tqdm(pbar, total=nb)  # progress bar
         optimizer.zero_grad()
@@ -344,8 +360,12 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
             if RANK in [-1, 0]:
                 mloss = (mloss * i + loss_items) / (i + 1)  # update mean losses
                 mem = f'{torch.cuda.memory_reserved() / 1E9 if torch.cuda.is_available() else 0:.3g}G'  # (GB)
-                pbar.set_description(('%10s' * 2 + '%10.4g' * 6) % (
-                    f'{epoch}/{epochs - 1}', mem, *mloss, targets.shape[0], imgs.shape[-1]))
+                if num_states:
+                    pbar.set_description(('%10s' * 2 + '%10.4g' * 7) % (
+                        f'{epoch}/{epochs - 1}', mem, *mloss, targets.shape[0], imgs.shape[-1]))
+                else:
+                    pbar.set_description(('%10s' * 2 + '%10.4g' * 6) % (
+                        f'{epoch}/{epochs - 1}', mem, *mloss, targets.shape[0], imgs.shape[-1]))
                 callbacks.on_train_batch_end(ni, model, imgs, targets, paths, plots, opt.sync_bn)
             # end batch -------------------------------------------------------------------------------------
             
@@ -387,7 +407,7 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
             # log_vals = list(mloss) + list(results) + error_list + lr
             # Here, the results are [P, R, mAP@.5, mAP@.5-.95, mAP@.5_part, mAP@.5-.95_part]
             log_vals = list(mloss) + list(results[2:]) + error_list + lr
-            callbacks.on_fit_epoch_end(log_vals, epoch, best_fitness, fi)
+            callbacks.on_fit_epoch_end(log_vals, epoch, best_fitness, fi, num_states)
             
             # Save model
             if (not nosave) or (final_epoch and not evolve):  # if save
@@ -482,6 +502,7 @@ def parse_opt(known=False):
     parser.add_argument('--autobalance', action='store_true', help='Learn keypoint and object loss scaling (experimental)')
     
     parser.add_argument('--body_part_w', type=float, default=0.025, help='weight for body part loss in hyp-p6.yaml')
+    parser.add_argument('--contact_w', type=float, default=0.01, help='weight for hand contact state loss in hyp-p6.yaml')
     parser.add_argument('--noaug', action='store_true', help='Not use data augumentation when training')
  
     opt = parser.parse_known_args()[0] if known else parser.parse_args()
