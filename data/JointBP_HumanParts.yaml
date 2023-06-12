@@ -1,0 +1,22 @@
+
+# train and val data as 1) directory: path/images/, 2) file: path/images.txt, or 3) list: [path1/images/, path2/images/]
+path: /datasdc/zhouhuayi/dataset/coco/JointBodyPart/
+labels: yolov5_style_parts
+train: yolov5_style_parts/img_txt/train.txt
+val: yolov5_style_parts/img_txt/val.txt
+
+train_annotations: humanparts_coco_train_person.json
+val_annotations: humanparts_coco_val_person.json
+
+# we will replace "bodypart" into class names when refer these json files
+train_annotations_part: humanparts_coco_train_bodypart.json  # for bodypart mAP calculation of train-set
+val_annotations_part: humanparts_coco_val_bodypart.json  # for bodypart mAP calculation of val-set
+
+
+nc: 7  # number of classes (two class: human body, head, face, lefthand, righthand, leftfoot, rightfoot)
+num_offsets: 12  # number of coordinates introduced by the body part, e.g., (6 bodyparts * 2 <dx, dy>)
+names: [ 'person', 'head', 'face', 'lefthand', 'righthand', 'leftfoot', 'rightfoot' ]  # class names.
+part_type: head  # for mMR cal during model training
+dataset: HumanParts
+
+
