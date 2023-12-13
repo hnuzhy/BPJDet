@@ -1,7 +1,7 @@
 # BPJDet
 Codes for my paper "[Body-Part Joint Detection and Association via Extended Object Representation](https://arxiv.org/abs/2212.07652)" accepted by ICME2023
 
-- [x] [**2023-12-13**] We bulit our projects of **BPJDet** and **BPJDetPlus** in one unified website https://hnuzhy.github.io/projects/BPJDet/
+- [x] [**2023-12-13**] We bulit our projects of **BPJDet** and **BPJDetPlus** in one unified website [BPJDet Project](https://hnuzhy.github.io/projects/BPJDet/).
 - [x] [**2023-07-21**] We won the **Best Student Paper Runner Up** award in ICME2023 of our conference paper!
 - [x] [**2023-06-13**] We have released all pretrained models of both new tasks: `body-parts joint detection` and `body-hand joint detection and hand contact estimation` in [Hugging Face](https://huggingface.co/HoyerChou/BPJDet#bpjdetplus).
 - [x] [**2023-06-13**] We have released a new branch [BPJDetPlus](https://github.com/hnuzhy/BPJDet/tree/BPJDetPlus) for the journal verison with updated code and detailed descriptions. It has various new functions (`Multiple Body-Parts Joint Detection` and two downstream applications including `Body-Head for Accurate Crowd Counting` and `Body-Hand for Hand Contact Estimation`). Please feel free to follow it!
