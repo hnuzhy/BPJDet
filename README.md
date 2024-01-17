@@ -1,5 +1,5 @@
 # BPJDetPlus
-Codes for my paper "[BPJDet: Extended Object Representation for Generic Body-Part Joint Detection](https://arxiv.org/abs/2304.10765)" which is an extended version of our conference paper ICME2023. ***Note: BPJDetPlus is compatible with BPJDet, which means that all tasks in BPJDet can be trained using BPJDetPlus's code, otherwise it is not**.*
+Codes for my paper "[BPJDet: Extended Object Representation for Generic Body-Part Joint Detection](https://arxiv.org/abs/2304.10765v2)" which is an extended version of our conference paper ICME2023. ***Note: BPJDetPlus is compatible with BPJDet, which means that all tasks in BPJDet can be trained using BPJDetPlus's code, otherwise it is not**.*
 
 <table>
 <tr>
